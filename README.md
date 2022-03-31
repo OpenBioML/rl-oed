@@ -31,7 +31,7 @@ The main classes are the continuous_agents and OED_env, see examples for how to 
 ### continuous_agents
 The continuous_agents.py file can be imported and used on any RL task.
 ```console
-from RED.agents.continuous_agents import DDPG_agent
+from RED.agents.continuous_agents import RT3D_agent
 ```
 
 ### OED_env
