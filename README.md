@@ -1,2 +1,2 @@
 # RED
-Reinforcment learning for Experimental Design
+Reinforcement learning for Experimental Design
