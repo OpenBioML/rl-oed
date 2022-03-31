@@ -1,9 +1,8 @@
 import sys
 import os
 
-IMPORT_PATH = os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'))
-sys.path.append(IMPORT_PATH)
-IMPORT_PATH = os.path.join(os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'), 'chemostat'))
+
+IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
 
 
@@ -12,11 +11,10 @@ sys.path.append(IMPORT_PATH)
 from casadi import *
 import numpy as np
 import matplotlib.pyplot as plt
-from OED_env import *
-import time
 
 
-from xdot_chemostat import xdot
+from RED.environments.OED_env import OED_env
+from RED.environments.chemostat.xdot_chemostat import xdot
 import json
 
 def disablePrint():
@@ -30,7 +28,10 @@ def enablePrint():
 if __name__ == '__main__':
 
     #setup
-    params = json.load(open(os.path.join(IMPORT_PATH, 'params_chemostat.json')))
+    param_dir = os.path.join(os.path.join(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
+                     'environments'), 'chemostat'))
+    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
     n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
         [params[k] for k in params.keys()]
     actual_params = DM(actual_params)

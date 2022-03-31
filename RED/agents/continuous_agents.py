@@ -222,7 +222,7 @@ class DRPG_agent():
 
 
 
-class DDPG_agent():
+class RT3D_agent():
     '''
     class that implements the RT3D agent
     '''

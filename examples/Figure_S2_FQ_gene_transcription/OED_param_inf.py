@@ -2,18 +2,14 @@ import sys
 import os
 
 
-IMPORT_PATH = os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'))
-sys.path.append(IMPORT_PATH)
-IMPORT_PATH = os.path.join(os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'), 'gene_transcription'))
+IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
 
 from casadi import *
 import numpy as np
 import matplotlib.pyplot as plt
-from OED_env import *
-
-from ROCC import *
-from xdot_gene_transcription import xdot
+from RED.environments.OED_env import OED_env
+from RED.environments.gene_transcription.xdot_gene_transcription import xdot
 
 def disablePrint():
     sys.stdout = open(os.devnull, 'w')

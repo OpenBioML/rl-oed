@@ -4,18 +4,19 @@ import os
 import argparse
 import importlib.util
 
-IMPORT_PATH = os.path.join(os.path.join(os.path.dirname(os.path.abspath(__file__))),'agents')
+IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(IMPORT_PATH)
-IMPORT_PATH = os.path.join(os.path.join(os.path.dirname(os.path.abspath(__file__))), 'environments')
-sys.path.append(IMPORT_PATH)
+
 
 
 import math
 from casadi import *
 import numpy as np
 import matplotlib.pyplot as plt
-from OED_env import *
-from continuous_agents import *
+
+
+from RED.agents.continuous_agents import RT3D_agent
+from RED.environments.OED_env import OED_env
 
 import time
 
@@ -56,7 +57,7 @@ def run_RT3D(xdot, param_path):
                        hidden_layer_size[1], n_controlled_inputs]
     val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs,
                        hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = DDPG_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
+    agent = RT3D_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
                        val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
     agent.batch_size = int(N_control_intervals * skip)
     agent.max_length = 11
