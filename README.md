@@ -2,6 +2,9 @@
 Reinforcement learning for Experimental Design
 
 ### Installation
+
+RED does not need to be installed to runb the examples 
+
 To use the package within python scropts, `RED` must be in PYTHONPATH.
 
 To add to PYTHONPATH on a bash system add the following to the ~/.bashrc file
