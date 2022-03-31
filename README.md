@@ -30,8 +30,13 @@ The main classes are the continuous_agents and OED_env, see examples for how to 
 
 ### continuous_agents
 The continuous_agents.py file can be imported and used on any RL task.
-
+```console
+from RED.agents.continuous_agents import DDPG_agent
+```
 
 ### OED_env
 Contains the environments used for RL for OED. Can be imported and initialised with any system goverened by a set of DEs
 
+```console
+from RED.environments.OED_env import OED_env
+```
