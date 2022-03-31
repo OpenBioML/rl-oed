@@ -1,0 +1,17 @@
+{
+    "n_episodes": 50000,
+    "skip": 10,
+    "y0": [200000, 0, 1],
+    "actual_params": [1, 0.00048776, 0.00006845928],
+    "input_bounds": [[0.01, 1],[0.01, 1]],
+    "n_controlled_inputs": 2,
+    "num_inputs": 10,
+    "dt":0.00025,
+    "lb":[0.5, 0.0001, 0.00001],
+    "ub":[2, 0.001, 0.0001],
+    "N_control_intervals":10,
+    "control_interval_time":2,
+    "n_observed_variables":1,
+    "prior":false,
+    "normaliser":[1e3, 1e1]
+}
