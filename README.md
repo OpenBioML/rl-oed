@@ -2,7 +2,7 @@
 Reinforcement learning for Experimental Design
 
 ### Installation
-To use the package within python scropts, `ROCC` must be in PYTHONPATH.
+To use the package within python scropts, `RED` must be in PYTHONPATH.
 
 To add to PYTHONPATH on a bash system add the following to the ~/.bashrc file
 
