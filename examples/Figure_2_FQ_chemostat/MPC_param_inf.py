@@ -42,7 +42,8 @@ if __name__ == '__main__':
         [params[k] for k in params.keys()]
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
-    save_path = './results/'
+    save_path = os.path.join('.', 'results')
+
     param_guesses = DM((np.array(ub) + np.array(lb))/2)
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
     env = OED_env(*args)
@@ -77,10 +78,10 @@ if __name__ == '__main__':
     us = sol['x']
 
     # save results and plot
-    np.save(save_path + 'trajectories.npy', np.array(env.true_trajectory))
+    np.save(os.path.join(save_path, 'trajectories.npy'), np.array(env.true_trajectory))
 
-    np.save(save_path + 'true_trajectory.npy', env.true_trajectory)
-    np.save(save_path + 'us.npy', np.array(env.us))
+    np.save(os.path.join(save_path,'true_trajectory.npy'), env.true_trajectory)
+    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
 
 
     t = np.arange(N_control_intervals) * int(control_interval_time)
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     plt.legend()
     plt.ylabel('bacteria')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'bacteria_trajectories.pdf')
+    plt.savefig(os.path.join(save_path,'bacteria_trajectories.pdf'))
 
 
     plt.figure()
@@ -97,18 +98,18 @@ if __name__ == '__main__':
     plt.legend()
     plt.ylabel( 'C')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c_trajectories.pdf')
+    plt.savefig(os.path.join(save_path,'c_trajectories.pdf'))
 
     plt.figure()
     plt.plot(env.true_trajectory[2, :].elements(), label='true')
     plt.legend()
     plt.ylabel('C0')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c0_trajectories.pdf')
+    plt.savefig(os.path.join(save_path,'c0_trajectories.pdf'))
 
     plt.figure()
     plt.ylim(bottom=0)
     plt.ylabel('u')
     plt.xlabel('Timestep')
-    plt.savefig(save_path + 'log_us.pdf')
+    plt.savefig(os.path.join(save_path,'log_us.pdf'))
     plt.show()

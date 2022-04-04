@@ -44,7 +44,7 @@ if __name__ == '__main__':
     n_FIM_elements = sum(range(n_params + 1))
     n_tot = n_observed_variables + n_params * n_system_variables + n_FIM_elements
     param_guesses = actual_params
-    save_path = './results/'
+    save_path = os.path.join('.', 'results')
     agent = KerasFittedQAgent(layer_sizes=[n_observed_variables + n_params + n_FIM_elements + 1, 150, 150, 150, num_inputs ** n_controlled_inputs])
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser
     env = OED_env(*args)
@@ -127,46 +127,20 @@ if __name__ == '__main__':
 
     #save results and plot
     agent.save_network(save_path)
-    np.save(save_path + 'all_returns.npy', np.array(all_returns))
+    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
 
-    np.save(save_path + 'actions.npy', np.array(agent.actions))
-    np.save(save_path + 'values.npy', np.array(agent.values))
+    np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
+    np.save(os.path.join(save_path, 'values.npy'), np.array(agent.values))
 
     t = np.arange(N_control_intervals) * int(control_interval_time)
 
-    plt.plot(env.true_trajectory[0, :].elements(), label = 'true')
-    plt.legend()
-    plt.ylabel('bacteria')
-    plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'bacteria_trajectories.pdf')
 
-
-    plt.figure()
-    plt.plot( env.true_trajectory[1, :].elements(), label = 'true')
-    plt.legend()
-    plt.ylabel( 'C')
-    plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c_trajectories.pdf')
-
-    plt.figure()
-    plt.plot(env.true_trajectory[2, :].elements(), label='true')
-    plt.legend()
-    plt.ylabel('C0')
-    plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c0_trajectories.pdf')
-
-
-    plt.figure()
-    plt.ylim(bottom=0)
-    plt.ylabel('u')
-    plt.xlabel('Timestep')
-    plt.savefig(save_path + 'log_us.pdf')
 
     plt.figure()
     plt.plot(all_returns)
     plt.ylabel('Return')
     plt.xlabel('Episode')
-    plt.savefig(save_path + 'return.pdf')
+    plt.savefig(os.path.join(save_path,'return.pdf'))
 
 
 

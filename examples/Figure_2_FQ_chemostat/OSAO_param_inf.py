@@ -36,7 +36,7 @@ if __name__ == '__main__':
         [params[k] for k in params.keys()]
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
-    save_path = './results/'
+    save_path = os.path.join('.', 'results')
     n_params = actual_params.size()[0]
     n_system_variables = len(y0)
     n_FIM_elements = sum(range(n_params + 1))
@@ -63,42 +63,36 @@ if __name__ == '__main__':
         state = next_state
 
     # save results and plot
-    print('return: ', np.sum(e_rewards))
+    np.save(os.path.join(save_path, 'trajectories.npy'), np.array(env.true_trajectory))
 
-    np.save(save_path + 'trajectories.npy', np.array(env.true_trajectory))
-
-    np.save(save_path + 'true_trajectory.npy', env.true_trajectory)
-    np.save(save_path + 'us.npy', np.array(env.us))
+    np.save(os.path.join(save_path, 'true_trajectory.npy'), env.true_trajectory)
+    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
 
     t = np.arange(N_control_intervals) * int(control_interval_time)
 
-    plt.plot(env.true_trajectory[0, :].elements(), label = 'true')
+    plt.plot(env.true_trajectory[0, :].elements(), label='true')
     plt.legend()
     plt.ylabel('bacteria')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'bacteria_trajectories.pdf')
-
+    plt.savefig(os.path.join(save_path, 'bacteria_trajectories.pdf'))
 
     plt.figure()
-    plt.plot( env.true_trajectory[1, :].elements(), label = 'true')
+    plt.plot(env.true_trajectory[1, :].elements(), label='true')
     plt.legend()
-    plt.ylabel( 'C')
+    plt.ylabel('C')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c_trajectories.pdf')
+    plt.savefig(os.path.join(save_path, 'c_trajectories.pdf'))
 
     plt.figure()
     plt.plot(env.true_trajectory[2, :].elements(), label='true')
     plt.legend()
     plt.ylabel('C0')
     plt.xlabel('time (mins)')
-    plt.savefig(save_path + 'c0_trajectories.pdf')
-
+    plt.savefig(os.path.join(save_path, 'c0_trajectories.pdf'))
 
     plt.figure()
     plt.ylim(bottom=0)
     plt.ylabel('u')
     plt.xlabel('Timestep')
-    plt.savefig(save_path + 'log_us.pdf')
-
-
+    plt.savefig(os.path.join(save_path, 'log_us.pdf'))
     plt.show()
