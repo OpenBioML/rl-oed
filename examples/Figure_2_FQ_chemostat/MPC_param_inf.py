@@ -43,6 +43,7 @@ if __name__ == '__main__':
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
     save_path = os.path.join('.', 'results')
+    os.makedirs(save_path, exist_ok=True)
 
     param_guesses = DM((np.array(ub) + np.array(lb))/2)
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser

@@ -65,6 +65,7 @@ if __name__ == '__main__':
 
     #save and plot results
     save_path = os.path.join('.', 'results')
+    os.makedirs(save_path, exist_ok=True)
     np.save(os.path.join(save_path, 'trajectories.npy'), np.array(env.true_trajectory))
     np.save(os.path.join(save_path, 'true_trajectory.npy'), env.true_trajectory)
     np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))

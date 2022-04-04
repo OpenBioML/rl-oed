@@ -37,6 +37,7 @@ if __name__ == '__main__':
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
     save_path = os.path.join('.', 'results')
+    os.makedirs(save_path, exist_ok=True)
     n_params = actual_params.size()[0]
     n_system_variables = len(y0)
     n_FIM_elements = sum(range(n_params + 1))
