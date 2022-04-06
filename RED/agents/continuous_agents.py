@@ -437,8 +437,9 @@ class RT3D_agent():
                 self.next_states.append(next_state)
                 self.actions.append(action)
                 self.rewards.append(reward)
-                e_rewards.append(reward)
+
                 self.dones.append(done)
+                e_rewards.append(reward)
 
             if monte_carlo:
                 e_values = [e_rewards[-1]]
@@ -448,11 +449,26 @@ class RT3D_agent():
                 self.all_returns.extend(e_values)
 
 
+            #
+            # remove items if agents memroy is full
+
+            if len(self.states) > self.mem_size:
+                del self.sequences[:len(self.states)-self.mem_size]
+                del self.next_sequences[:len(self.states)-self.mem_size]
+                del self.next_states[:len(self.states)-self.mem_size]
+                del self.actions[:len(self.states)-self.mem_size]
+                del self.rewards[:len(self.states)-self.mem_size]
+                del self.dones[:len(self.states)-self.mem_size]
+                del self.states[:len(self.states) - self.mem_size]
+
+
+
+
         if recurrent:
             padded = pad_sequences(self.sequences, maxlen = self.max_length, dtype='float64')[:self.mem_size]
             next_padded = pad_sequences(self.next_sequences, maxlen=self.max_length, dtype='float64')[:self.mem_size]
 
-
+        # TODO: this is really memory inefficient, take random sample before initialising arrays
         next_states = np.array(self.next_states, dtype=np.float64)[:self.mem_size]
         rewards = np.array(self.rewards).reshape(-1, 1)[:self.mem_size]
         dones = np.array(self.dones).reshape(-1, 1)[:self.mem_size]
@@ -543,7 +559,7 @@ class RT3D_agent():
 
         inputs = [states, padded] if recurrent else [states]
         #print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
-
+        gc.collect() # clear ol dstuff from memory
         return inputs, actions, targets
 
     def get_inputs_targets_low_mem(self, recurrent = True, monte_carlo = False, fitted = False):

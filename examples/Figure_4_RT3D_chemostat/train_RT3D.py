@@ -4,7 +4,7 @@ import os
 
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
-
+print(IMPORT_PATH)
 
 import math
 from casadi import *
