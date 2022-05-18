@@ -110,8 +110,12 @@ class OED_env():
 
         sensitivities_dot = jacobian(dx[0:self.n_observed_variables], theta) + mtimes(jacobian(dx[0:self.n_observed_variables], Y[0:self.n_observed_variables]), jacobian(Y[0:self.n_observed_variables], theta))
 
+        #TODO: dont need this as parameters not dimensioned and helps FIM not become nan
+
         for i in range(sensitivities_dot.size()[0]):  # logarithmic sensitivities
-            sensitivities_dot[i, :] *= theta.T
+            sensitivities_dot[i, :] *= (theta.T+1e-5)
+
+
 
         std = 0.05 * Y[0:self.n_observed_variables]  # to stop divde by zero when conc = 0
 
