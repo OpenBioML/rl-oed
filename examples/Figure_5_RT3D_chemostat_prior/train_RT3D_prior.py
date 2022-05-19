@@ -9,6 +9,8 @@ sys.path.append(IMPORT_PATH)
 import math
 from casadi import *
 import numpy as np
+import matplotlib as mpl
+mpl.use('tkagg')
 import matplotlib.pyplot as plt
 from RED.agents.continuous_agents import RT3D_agent
 from RED.environments.OED_env import OED_env
@@ -44,7 +46,7 @@ if __name__ == '__main__':
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
     except:
         pass
-    save_path = './results/'
+    save_path = os.path.join('.', 'results')
 
 
     #agent setup
@@ -145,14 +147,14 @@ if __name__ == '__main__':
         print()
 
     #plot and save results
-    np.save(save_path + 'all_returns.npy', np.array(all_returns))
-    np.save(save_path + 'actions.npy', np.array(agent.actions))
     agent.save_network(save_path)
+    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
+    np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
+
 
     t = np.arange(N_control_intervals) * int(control_interval_time)
 
-    plt.plot(all_test_returns)
-    plt.figure()
+
     plt.plot(all_returns)
     plt.show()
 

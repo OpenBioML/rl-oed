@@ -441,7 +441,7 @@ class KerasFittedQAgent(FittedQAgent):
         '''
         Saves current network weights
         '''
-        self.network.save(save_path + '/saved_network.h5')
+        self.network.save(os.path.join(save_path, 'saved_network.h5'))
 
     def save_network_tensorflow(self, save_path):
         '''
@@ -467,8 +467,8 @@ class KerasFittedQAgent(FittedQAgent):
         '''
 
         try:
-            self.network = keras.models.load_model(load_path + '/saved_network.h5') # sometimes this crashes, apparently a bug in keras
+            self.network = keras.models.load_model(os.path.join(load_path, 'saved_network.h5')) # sometimes this crashes, apparently a bug in keras
         except:
             print('EXCEPTION IN LOAD NETWORK')
 
-            self.network.load_weights(load_path + '/saved_network.h5') # this requires model to be initialised exactly the same
+            self.network.load_weights(os.path.join(load_path, 'saved_network.h5')) # this requires model to be initialised exactly the same

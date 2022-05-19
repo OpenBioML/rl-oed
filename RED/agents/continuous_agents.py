@@ -8,7 +8,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 import gc
 
-
+import os
 
 class DRPG_agent():
     def __init__(self, layer_sizes, learning_rate = 0.001, critic=True):
@@ -437,8 +437,9 @@ class RT3D_agent():
                 self.next_states.append(next_state)
                 self.actions.append(action)
                 self.rewards.append(reward)
-                e_rewards.append(reward)
+
                 self.dones.append(done)
+                e_rewards.append(reward)
 
             if monte_carlo:
                 e_values = [e_rewards[-1]]
@@ -448,11 +449,26 @@ class RT3D_agent():
                 self.all_returns.extend(e_values)
 
 
+            #
+            # remove items if agents memroy is full
+
+            if len(self.states) > self.mem_size:
+                del self.sequences[:len(self.states)-self.mem_size]
+                del self.next_sequences[:len(self.states)-self.mem_size]
+                del self.next_states[:len(self.states)-self.mem_size]
+                del self.actions[:len(self.states)-self.mem_size]
+                del self.rewards[:len(self.states)-self.mem_size]
+                del self.dones[:len(self.states)-self.mem_size]
+                del self.states[:len(self.states) - self.mem_size]
+
+
+
+
         if recurrent:
             padded = pad_sequences(self.sequences, maxlen = self.max_length, dtype='float64')[:self.mem_size]
             next_padded = pad_sequences(self.next_sequences, maxlen=self.max_length, dtype='float64')[:self.mem_size]
 
-
+        # TODO: this is really memory inefficient, take random sample before initialising arrays
         next_states = np.array(self.next_states, dtype=np.float64)[:self.mem_size]
         rewards = np.array(self.rewards).reshape(-1, 1)[:self.mem_size]
         dones = np.array(self.dones).reshape(-1, 1)[:self.mem_size]
@@ -543,7 +559,7 @@ class RT3D_agent():
 
         inputs = [states, padded] if recurrent else [states]
         #print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
-
+        gc.collect() # clear ol dstuff from memory
         return inputs, actions, targets
 
     def get_inputs_targets_low_mem(self, recurrent = True, monte_carlo = False, fitted = False):
@@ -775,13 +791,13 @@ class RT3D_agent():
         :return:
         '''
         #print(self.network.layers[1].get_weights())
-        self.policy_network.save(save_path + '/policy_network.h5')
-        self.Q1_network.save(save_path + '/Q1_network.h5')
-        self.Q2_network.save(save_path + '/Q2_network.h5')
+        self.policy_network.save(os.path.join(save_path,'policy_network.h5'))
+        self.Q1_network.save(os.path.join(save_path, 'Q1_network.h5'))
+        self.Q2_network.save(os.path.join(save_path, 'Q2_network.h5'))
 
-        self.policy_target.save(save_path + '/policy_target.h5')
-        self.Q1_target.save(save_path + '/Q1_target.h5')
-        self.Q2_target.save(save_path + '/Q2_target.h5')
+        self.policy_target.save(os.path.join(save_path, 'policy_target.h5'))
+        self.Q1_target.save(os.path.join(save_path, 'Q1_target.h5'))
+        self.Q2_target.save(os.path.join(save_path,'Q2_target.h5'))
 
     def load_network(self, load_path): #tested
         '''
@@ -793,20 +809,20 @@ class RT3D_agent():
 
 
         try:
-            self.policy_network = keras.models.load_model(load_path + '/policy_network.h5') # sometimes this crashes, apparently a bug in keras
-            self.Q1_network = keras.models.load_model(load_path + '/Q1_network.h5')
-            self.Q2_network = keras.models.load_model(load_path + '/Q2_network.h5')
-            #self.policy_target = keras.models.load_model(load_path + '/policy_target.h5')  # sometimes this crashes, apparently a bug in keras
-            #self.Q1_target = keras.models.load_model(load_path + '/Q1_target.h5')
-            #self.Q2_target = keras.models.load_model(load_path + '/Q2_target.h5')
+            self.policy_network = keras.models.load_model(os.path.join(load_path, 'policy_network.h5')) # sometimes this crashes, apparently a bug in keras
+            self.Q1_network = keras.models.load_model(os.path.join(load_path, 'Q1_network.h5'))
+            self.Q2_network = keras.models.load_model(os.path.join(load_path, 'Q2_network.h5'))
+            self.policy_target = keras.models.load_model(os.path.join(load_path,'policy_target.h5'))  # sometimes this crashes, apparently a bug in keras
+            self.Q1_target = keras.models.load_model(os.path.join(load_path,'Q1_target.h5'))
+            self.Q2_target = keras.models.load_model(os.path.join(load_path, 'Q2_target.h5'))
         except:
             print('EXCEPTION IN LOAD NETWORK')
-            self.policy_network.load_weights(load_path+ '/policy_network.h5') # this requires model to be initialised exactly the same
-            self.Q1_network.load_weights(load_path + '/Q1_network.h5')
-            self.Q2_network.load_weights(load_path + '/Q2_network.h5')
-            #self.policy_target.load_weights(load_path + '/policy_target.h5')  # this requires model to be initialised exactly the same
-            #self.Q1_target.load_weights(load_path + '/Q1_target.h5')
-            #self.Q2_target.load_weights(load_path + '/Q2_target.h5')
+            self.policy_network.load_weights(os.path.join(load_path, 'policy_network.h5')) # this requires model to be initialised exactly the same
+            self.Q1_network.load_weights(os.path.join(load_path, 'Q1_network.h5'))
+            self.Q2_network.load_weights(os.path.join(load_path, 'Q2_network.h5'))
+            self.policy_target.load_weights(os.path.join(load_path, 'policy_target.h5'))  # this requires model to be initialised exactly the same
+            self.Q1_target.load_weights(os.path.join(load_path,'Q1_target.h5'))
+            self.Q2_target.load_weights(os.path.join(load_path, 'Q2_target.h5'))
 
     def reset_weights(self, policy = True):
         '''
