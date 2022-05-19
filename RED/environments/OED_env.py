@@ -69,7 +69,7 @@ class OED_env():
         self.num_inputs = num_inputs
         self.input_bounds = np.array(input_bounds)
         self.current_tstep = 0 # to keep track of time in parallel
-        self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
+        #self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
 
     def reset(self, partial = False):
 
@@ -100,6 +100,7 @@ class OED_env():
         :param u: inputs
         :return RHS: the full system of derivatives
         '''
+
 
         RHS = SX.sym('RHS', len(Y.elements()))
 
@@ -181,9 +182,13 @@ class OED_env():
         :param mode: switch between OED and just simulation without the FIM
         :return G: function that simulates a single control interval
         '''
+
         # TODO: try mapaccum in here to reduce memory usage
 
-        theta = SX.sym('theta', len(self.actual_params.elements()))
+        #theta = SX.sym('theta', len(self.actual_params.elements())) used for the chemostat OED
+
+        theta = SX.sym('theta', self.actual_params.size())
+
         u = SX.sym('u', self.n_controlled_inputs)
 
         G_1 = self.get_one_step_RK(theta, u, dt, mode = mode)  # pass theta and u in just in case#

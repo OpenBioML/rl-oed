@@ -10,7 +10,7 @@ To use the package within python scropts, `RED` must be in PYTHONPATH.
 To add to PYTHONPATH on a bash system add the following to the ~/.bashrc file
 
 ```console
-export PYTHONPATH="${PYTHONPATH}:<path to RED_master>"
+export PYTHONPATH="${PYTHONPATH}:<path to RED root dir>"
 ```
 
 ### Dependencies

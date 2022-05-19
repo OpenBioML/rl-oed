@@ -45,6 +45,7 @@ if __name__ == '__main__':
     save_path = './results/'
     param_guesses = DM((np.array(ub) + np.array(lb))/2)
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
+
     env = OED_env(*args)
     input_bounds = np.array(input_bounds)
     u0 = (input_bounds[:,1] + input_bounds[:,0])/2
