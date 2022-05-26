@@ -114,7 +114,7 @@ class OED_env():
         #TODO: dont need this as parameters not dimensioned and helps FIM not become nan
 
         for i in range(sensitivities_dot.size()[0]):  # logarithmic sensitivities
-            sensitivities_dot[i, :] *= (theta.T+1e-5)
+            sensitivities_dot[i, :] *= (fabs(theta.T)+1e-5) # absolute value becuase we have negative params
 
 
 
