@@ -9,8 +9,6 @@ sys.path.append(IMPORT_PATH)
 import math
 from casadi import *
 import numpy as np
-import matplotlib as mpl
-mpl.use('tkagg')
 import matplotlib.pyplot as plt
 from RED.agents.continuous_agents import RT3D_agent
 from RED.environments.OED_env import OED_env

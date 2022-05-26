@@ -6,8 +6,6 @@ sys.path.append(IMPORT_PATH)
 
 from casadi import *
 import numpy as np
-import matplotlib as mpl
-mpl.use('tkagg')
 import matplotlib.pyplot as plt
 
 import time
