@@ -316,7 +316,7 @@ class OED_env():
 
         return solver  # , current_FIM
 
-    def get_param_solver(self, trajectory_solver, test_trajectory=None):
+    def get_param_solver(self, trajectory_solver, test_trajectory=None, initial_Y = None):
         '''
         creates the solver to fit the params
         :param trajectory_solver: the solver for the trajectory given the params
@@ -325,15 +325,18 @@ class OED_env():
         '''
         sym_theta = SX.sym('theta', len(self.param_guesses.elements()))
 
+        if initial_Y is None:
+            initial_Y = self.initial_Y
+
         if test_trajectory is None:
-            trajectory = trajectory_solver(DM(self.initial_Y), self.actual_params, np.array(self.us).T, mode = 'param')
+            trajectory = trajectory_solver(DM(initial_Y), self.actual_params, np.array(self.us).T, mode = 'param')
 
             print('p did:', trajectory.shape)
         else:
             trajectory = test_trajectory
             print('p did:', trajectory.shape)
 
-        est_trajectory_sym = trajectory_solver(DM(self.initial_Y), sym_theta, np.array(self.us).T)
+        est_trajectory_sym = trajectory_solver(DM(initial_Y), sym_theta, np.array(self.us).T)
         print('sym trajectory initialised')
         print('sym traj:', est_trajectory_sym.shape)
         print('traj:', trajectory.shape)
