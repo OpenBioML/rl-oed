@@ -22,7 +22,8 @@ def disablePrint():
 def enablePrint():
     sys.stdout = sys.__stdout__
 
-
+def action_scaling(u):
+    return 10**u
 
 if __name__ == '__main__':
 
@@ -69,7 +70,7 @@ if __name__ == '__main__':
         for e in range(0, N_control_intervals): # run episode
             t = time.time()
             action = agent.get_action(state.reshape(-1, 23), explore_rate)
-            next_state, reward, done, _ = env.step(action, use_old_state = True)
+            next_state, reward, done, _ = env.step(action, use_old_state = True, scaling = action_scaling)
             if e == N_control_intervals - 1:
                 next_state = [None]*23
                 done = True

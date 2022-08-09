@@ -343,13 +343,14 @@ class OED_env():
 
         return solver
 
-    def step(self, action = None, continuous = True, use_old_state = False):
+    def step(self, action = None, continuous = True, use_old_state = False, scaling = None):
         '''
         performs one RL ste
         :param action:
         :param continuous:
         :param use_old_state:
         :return: state, action, reward, done
+        :param scaling: scaling function for the actions from the RL agent e.g. convert from log scale
         '''
 
         self.current_tstep += 1
@@ -363,7 +364,9 @@ class OED_env():
                 u = action
             else:
                 u = self.action_to_input(action).T
-            #self.us.append(10**u)
+            if scaling:
+                u = scaling(u)
+
             self.us.append(u)
         N_control_intervals = len(self.us)
         #N_control_intervals = 12
@@ -611,7 +614,7 @@ class OED_env():
 
         return self.normalise_RL_state(state)
 
-    def map_parallel_step(self, actions, actual_params, continuous = False, Ds = False, use_old_state = False, use_time = True):
+    def map_parallel_step(self, actions, actual_params, continuous = False, Ds = False, use_old_state=False, use_time=True, scaling = None):
         '''
         runs step in parrallel using casadi map function
         :param actions: actions for all the parallel experiments
@@ -620,6 +623,7 @@ class OED_env():
         :param Ds: use Ds design
         :param use_old_state:
         :param use_time: add time to the state
+        :param scaling: scaling function for the actions from the RL agent e.g. convert from log scale
         :return: the transitions of all parallel experiments
         '''
         self.current_tstep += 1
@@ -633,7 +637,7 @@ class OED_env():
         else:
             us = self.input_bounds[:, 0].reshape(-1, 1) + (self.input_bounds[:,1] - self.input_bounds[:, 0]).reshape(-1, 1)*actions
 
-
+        us = scaling(us)
         actual_params = DM(actual_params)
 
         N_control_intervals = len(us)
@@ -641,7 +645,6 @@ class OED_env():
         # set sampled trajectory solver in script to ensure thread safety
         true_trajectories = self.mapped_trajectory_solver(self.Y, actual_params.T, np.array(us))
         transitions = []
-        t = time.time()
 
         for i in range(true_trajectories.shape[1]):
             true_trajectory = true_trajectories[:, i]

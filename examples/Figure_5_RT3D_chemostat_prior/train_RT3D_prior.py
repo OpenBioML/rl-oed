@@ -75,6 +75,7 @@ if __name__ == '__main__':
     env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
 
     for episode in range(int(n_episodes//skip)): #training loop
+
         actual_params = np.random.uniform(low=lb, high=ub,  size = (skip, 3)) # sample from uniform distribution
         env.param_guesses = DM(actual_params)
         states = [env.get_initial_RL_state_parallel() for i in range(skip)]
