@@ -4,15 +4,20 @@ import os
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
 
-
 from casadi import *
 import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
+
+import time
+import tensorflow as tf
 from RED.environments.OED_env import OED_env
-from RED.environments.chemostat.xdot_chemostat import xdot
+from RED.environments.gene_transcription.xdot_gene_transcription import xdot
+from RED.agents.continuous_agents import RT3D_agent
+import multiprocessing
 import json
+import math
 
 def disablePrint():
     sys.stdout = open(os.devnull, 'w')
@@ -38,8 +43,10 @@ if __name__ == '__main__':
 
 
     # setup
-    param_dir =  os.path.join(os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
+    param_dir = os.path.join(os.path.join(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
+                     'environments'), 'gene_transcription'))
+    params = json.load(open(os.path.join(param_dir, 'params_gene_transcription.json')))
     n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
         [params[k] for k in params.keys()]
     actual_params = DM(actual_params)
@@ -62,7 +69,7 @@ if __name__ == '__main__':
         '''
         us = SX.sym('us', N_control_intervals * n_controlled_inputs)
         trajectory_solver = env.get_sampled_trajectory_solver(N_control_intervals, control_interval_time, dt)
-        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(us , (n_controlled_inputs, N_control_intervals)))
+        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(10.0**us , (n_controlled_inputs, N_control_intervals)))
 
         FIM = env.get_FIM(est_trajectory)
 
@@ -70,7 +77,7 @@ if __name__ == '__main__':
 
         obj = -trace(log(r))
         nlp = {'x': us, 'f': obj}
-        solver = env.gauss_newton(obj, nlp, us, limited_mem = True) # for some reason limited mem works better for the MPC
+        solver = env.gauss_newton(obj, nlp, us, limited_mem =True) # for some reason limited mem works better for the MPC
         return solver
 
 
@@ -79,11 +86,9 @@ if __name__ == '__main__':
     u_solver = get_full_u_solver()
     sol = u_solver(x0=u0, lbx = [input_bounds[0][0]]*n_controlled_inputs*N_control_intervals, ubx = [input_bounds[0][1]]*n_controlled_inputs*N_control_intervals)
     us = sol['x']
+    # MPC obj = -77.8
+    print(us)
 
-    # save results and plot
+    # save results
     np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
-
-
-    t = np.arange(N_control_intervals) * int(control_interval_time)
-
 

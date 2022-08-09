@@ -48,7 +48,7 @@ if __name__ == '__main__':
     env = OED_env(y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser)
     explore_rate = 1
     input_bounds = np.array(input_bounds)
-    u0 = (input_bounds[:,1] + input_bounds[:,0])/2
+    u0 = (10.0**input_bounds[:,1] + 10.0**input_bounds[:,0])/2
     env.u0 = DM(u0)
     e_rewards = []
 

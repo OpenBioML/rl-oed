@@ -356,7 +356,7 @@ class OED_env():
         self.current_tstep += 1
         if action is None: # Traditional OED step
             u_solver = self.get_u_solver()
-            #u = u_solver(x0=self.u0, lbx = 10**self.input_bounds[0], ubx = 10**self.input_bounds[1])['x']
+            #u = u_solver(x0=10**self.u0, lbx = 10**self.input_bounds[0], ubx = 10**self.input_bounds[1])['x']
             u = u_solver(x0=self.u0, lbx = self.input_bounds[:,0], ubx = self.input_bounds[:,1])['x']
             self.us.append(u.elements())
         else: #RL step

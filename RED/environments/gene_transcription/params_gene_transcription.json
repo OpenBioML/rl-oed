@@ -12,6 +12,6 @@
     "N_control_intervals":6,
     "control_interval_time":100,
     "n_observed_variables":2,
-    "prior":false,
+    "prior":true,
     "normaliser":[1e3, 1e5, 1e1]
 }

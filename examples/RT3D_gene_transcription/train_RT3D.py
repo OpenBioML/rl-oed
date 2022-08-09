@@ -76,7 +76,7 @@ if __name__ == '__main__':
     else:
         save_path = './working_results'
 
-    test_episode = True
+    test_episode = False
     recurrent = True
 
     # these chosen from parameter scan
@@ -125,6 +125,7 @@ if __name__ == '__main__':
     fitted = False
     print('time:', control_interval_time)
     for episode in range(int(n_episodes // skip)):
+        print(episode)
 
         if prior:
             actual_params = np.random.uniform(low=lb, high=ub, size=(skip, 5))
@@ -158,9 +159,9 @@ if __name__ == '__main__':
                 inputs = [states]
 
             if episode < 1000 // skip:
-                actions = agent.get_actions(inputs, explore_rate=1, test_episode=True)
+                actions = agent.get_actions(inputs, explore_rate=1, test_episode=test_episode)
             else:
-                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=True)
+                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=test_episode)
 
             e_actions.append(actions)
 
@@ -186,9 +187,11 @@ if __name__ == '__main__':
                     e_rewards[i].append(reward)
                     e_returns[i] += reward
 
+
             # print('sequences', np.array(sequences).shape)
             # print('sequences', sequences[0])
             states = next_states
+
         if test_episode:
             trajectories = trajectories[:-1]
 
@@ -196,10 +199,12 @@ if __name__ == '__main__':
             if np.all([np.all(np.abs(trajectory[i][0]) <= 1) for i in range(len(trajectory))]) and not math.isnan(
                     np.sum(trajectory[-1][0])):  # check for instability
                 agent.memory.append(trajectory)  # monte carlo, fitted
+
             else:
                 unstable += 1
                 print('UNSTABLE!!!')
                 print((trajectory[-1][0]))
+
 
         if episode > 1000 // skip:
             print('training', update_count)
@@ -209,7 +214,7 @@ if __name__ == '__main__':
                 update_count += 1
                 policy = update_count % policy_delay == 0
 
-                agent.Q_update(policy=policy, fitted=fitted, recurrent=recurrent)
+                agent.Q_update(policy=policy, fitted=fitted, recurrent=recurrent, low_mem = True)
             print('fitting time', time.time() - t)
 
         explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * max_std
@@ -221,9 +226,12 @@ if __name__ == '__main__':
 
         print('n unstable ', unstable)
         n_unstables.append(unstable)
-        all_returns.extend(e_returns[:-test_episode])
+
         if test_episode:
+            all_returns.extend(e_returns[:-1])
             all_test_returns.append(np.sum(np.array(e_rewards)[-1, :]))
+        else:
+            all_returns.extend(e_returns)
 
         print()
         print('EPISODE: ', episode, episode * skip)
@@ -251,12 +259,12 @@ if __name__ == '__main__':
     print('time:', time.time() - total_t)
     print(env.detFIMs[-1])
     print(env.logdetFIMs[-1])
-    np.save(save_path + 'all_returns.npy', np.array(all_returns))
+    np.save(save_path + '/all_returns.npy', np.array(all_returns))
     if test_episode:
-        np.save(save_path + 'all_test_returns.npy', np.array(all_test_returns))
+        np.save(save_path + '/all_test_returns.npy', np.array(all_test_returns))
 
-    np.save(save_path + 'n_unstables.npy', np.array(n_unstables))
-    np.save(save_path + 'actions.npy', np.array(agent.actions))
+    np.save(save_path + '/n_unstables.npy', np.array(n_unstables))
+    np.save(save_path + '/actions.npy', np.array(agent.actions))
     agent.save_network(save_path)
 
     # np.save(save_path + 'values.npy', np.array(agent.values))
