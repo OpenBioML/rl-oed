@@ -69,7 +69,7 @@ class OED_env():
         self.num_inputs = num_inputs
         self.input_bounds = np.array(input_bounds)
         self.current_tstep = 0 # to keep track of time in parallel
-        self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
+        #self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
 
     def reset(self, partial = False):
 
@@ -101,6 +101,7 @@ class OED_env():
         :return RHS: the full system of derivatives
         '''
 
+
         RHS = SX.sym('RHS', len(Y.elements()))
 
         # xdot = (sym_theta[0] * sym_u/(sym_theta[1] + sym_u))*sym_Y[0]
@@ -110,8 +111,12 @@ class OED_env():
 
         sensitivities_dot = jacobian(dx[0:self.n_observed_variables], theta) + mtimes(jacobian(dx[0:self.n_observed_variables], Y[0:self.n_observed_variables]), jacobian(Y[0:self.n_observed_variables], theta))
 
+        #TODO: dont need this as parameters not dimensioned and helps FIM not become nan
+
         for i in range(sensitivities_dot.size()[0]):  # logarithmic sensitivities
-            sensitivities_dot[i, :] *= theta.T
+            sensitivities_dot[i, :] *= (fabs(theta.T)+1e-5) # absolute value becuase we have negative params
+
+
 
         std = 0.05 * Y[0:self.n_observed_variables]  # to stop divde by zero when conc = 0
 
@@ -181,9 +186,13 @@ class OED_env():
         :param mode: switch between OED and just simulation without the FIM
         :return G: function that simulates a single control interval
         '''
+
         # TODO: try mapaccum in here to reduce memory usage
 
-        theta = SX.sym('theta', len(self.actual_params.elements()))
+        #theta = SX.sym('theta', len(self.actual_params.elements())) used for the chemostat OED
+
+        theta = SX.sym('theta', self.actual_params.size())
+
         u = SX.sym('u', self.n_controlled_inputs)
 
         G_1 = self.get_one_step_RK(theta, u, dt, mode = mode)  # pass theta and u in just in case#
@@ -307,7 +316,7 @@ class OED_env():
 
         return solver  # , current_FIM
 
-    def get_param_solver(self, trajectory_solver, test_trajectory=None):
+    def get_param_solver(self, trajectory_solver, test_trajectory=None, initial_Y = None):
         '''
         creates the solver to fit the params
         :param trajectory_solver: the solver for the trajectory given the params
@@ -316,15 +325,18 @@ class OED_env():
         '''
         sym_theta = SX.sym('theta', len(self.param_guesses.elements()))
 
+        if initial_Y is None:
+            initial_Y = self.initial_Y
+
         if test_trajectory is None:
-            trajectory = trajectory_solver(DM(self.initial_Y), self.actual_params, np.array(self.us).T, mode = 'param')
+            trajectory = trajectory_solver(DM(initial_Y), self.actual_params, np.array(self.us).T, mode = 'param')
 
             print('p did:', trajectory.shape)
         else:
             trajectory = test_trajectory
             print('p did:', trajectory.shape)
 
-        est_trajectory_sym = trajectory_solver(DM(self.initial_Y), sym_theta, np.array(self.us).T)
+        est_trajectory_sym = trajectory_solver(DM(initial_Y), sym_theta, np.array(self.us).T)
         print('sym trajectory initialised')
         print('sym traj:', est_trajectory_sym.shape)
         print('traj:', trajectory.shape)
