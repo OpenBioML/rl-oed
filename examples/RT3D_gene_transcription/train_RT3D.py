@@ -3,7 +3,7 @@ import os
 
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
-
+print(IMPORT_PATH)
 from casadi import *
 import numpy as np
 import matplotlib as mpl

@@ -69,7 +69,7 @@ class OED_env():
         self.num_inputs = num_inputs
         self.input_bounds = np.array(input_bounds)
         self.current_tstep = 0 # to keep track of time in parallel
-        #self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
+        self.CI_solver = self.get_control_interval_solver(control_interval_time, dt)
 
     def reset(self, partial = False):
 
