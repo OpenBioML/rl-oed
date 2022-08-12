@@ -69,12 +69,13 @@ if __name__ == '__main__':
 
         save_path = sys.argv[1] + sys.argv[2] + '/'
         print(n_episodes)
-        os.makedirs(save_path, exist_ok=True)
+
     elif len(sys.argv) == 2:
         save_path = sys.argv[1] + '/'
-        os.makedirs(save_path, exist_ok=True)
+
     else:
         save_path = './working_results'
+    os.makedirs(save_path, exist_ok=True)
 
     test_episode = False
     recurrent = True
@@ -244,11 +245,7 @@ if __name__ == '__main__':
 
         # print('us:', np.array(e_us)[0, :])
 
-        print('actions:', np.array(e_actions).shape)
-        print('actions:', np.array(e_actions)[:, 0])
-        print('rewards:', np.array(e_rewards)[0, :])
-        print('return:', np.sum(np.array(e_rewards)[0, :]))
-        print()
+
 
         if test_episode:
             print('test actions:', np.array(e_actions)[:, -1])

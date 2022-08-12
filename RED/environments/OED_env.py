@@ -649,7 +649,8 @@ class OED_env():
         else:
             us = self.input_bounds[:, 0].reshape(-1, 1) + (self.input_bounds[:,1] - self.input_bounds[:, 0]).reshape(-1, 1)*actions
 
-        us = scaling(us)
+        if scaling is not None:
+            us = scaling(us)
         actual_params = DM(actual_params)
 
         N_control_intervals = len(us)
@@ -743,6 +744,7 @@ class OED_env():
             pass
             print()
             print('nan reward, FIM might have negative determinant !!!!')
+            print(logdet_FIM, self.logdetFIMs)
 
             reward = -100
 
