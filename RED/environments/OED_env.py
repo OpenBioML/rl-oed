@@ -651,6 +651,7 @@ class OED_env():
 
         if scaling is not None:
             us = scaling(us)
+            print(us)
         actual_params = DM(actual_params)
 
         N_control_intervals = len(us)

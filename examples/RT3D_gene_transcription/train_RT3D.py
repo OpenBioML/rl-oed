@@ -124,6 +124,8 @@ if __name__ == '__main__':
     policy_delay = 2
     update_count = 0
     fitted = False
+
+    agent.load_network('/Users/neythen/Desktop/Projects/RL_OED/results/rt3d_gene_transcription_230822/repeat6')
     print('time:', control_interval_time)
     for episode in range(int(n_episodes // skip)):
         print(episode)
@@ -160,7 +162,7 @@ if __name__ == '__main__':
                 inputs = [states]
 
             if episode < 1000 // skip:
-                actions = agent.get_actions(inputs, explore_rate=1, test_episode=test_episode)
+                actions = agent.get_actions(inputs, explore_rate=0, test_episode=test_episode)
             else:
                 actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=test_episode)
 
