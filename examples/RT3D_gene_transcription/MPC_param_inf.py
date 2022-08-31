@@ -41,7 +41,10 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 if __name__ == '__main__':
 
+    '''
+    {'f': DM(-73.9751), 'g': DM([]), 'lam_g': DM([]), 'lam_p': DM([]), 'lam_x': DM([0.0544032, -0.000621907, -2.55992e-06, -0.000481557, -0.000545576, -0.000732909]), 'x': DM([2.99997, -2.93105, 1.48927, -2.90577, -2.91904, -2.94369])}
 
+    '''
     # setup
     param_dir = os.path.join(os.path.join(
         os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
@@ -54,7 +57,9 @@ if __name__ == '__main__':
     save_path = os.path.join('.', 'results')
     os.makedirs(save_path, exist_ok=True)
 
-    param_guesses = DM((np.array(ub) + np.array(lb))/2)
+    param_guesses = DM(actual_params) # for non prior
+    #param_guesses = DM((np.array(ub) + np.array(lb))/2) # for prior
+
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
     env = OED_env(*args)
     input_bounds = np.array(input_bounds)
@@ -69,7 +74,7 @@ if __name__ == '__main__':
         '''
         us = SX.sym('us', N_control_intervals * n_controlled_inputs)
         trajectory_solver = env.get_sampled_trajectory_solver(N_control_intervals, control_interval_time, dt)
-        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(10.0**us , (n_controlled_inputs, N_control_intervals)))
+        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(10.**us , (n_controlled_inputs, N_control_intervals)))
 
         FIM = env.get_FIM(est_trajectory)
 
@@ -77,7 +82,7 @@ if __name__ == '__main__':
 
         obj = -trace(log(r))
         nlp = {'x': us, 'f': obj}
-        solver = env.gauss_newton(obj, nlp, us, limited_mem =True) # for some reason limited mem works better for the MPC
+        solver = env.gauss_newton(obj, nlp, us, limited_mem =False)
         return solver
 
 
@@ -86,7 +91,7 @@ if __name__ == '__main__':
     u_solver = get_full_u_solver()
     sol = u_solver(x0=u0, lbx = [input_bounds[0][0]]*n_controlled_inputs*N_control_intervals, ubx = [input_bounds[0][1]]*n_controlled_inputs*N_control_intervals)
     us = sol['x']
-    # MPC obj = -77.8
+    print(sol)
     print(us)
 
     # save results
