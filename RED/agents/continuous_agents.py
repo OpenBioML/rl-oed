@@ -812,9 +812,9 @@ class RT3D_agent():
             self.policy_network = keras.models.load_model(os.path.join(load_path, 'policy_network.h5')) # sometimes this crashes, apparently a bug in keras
             self.Q1_network = keras.models.load_model(os.path.join(load_path, 'Q1_network.h5'))
             self.Q2_network = keras.models.load_model(os.path.join(load_path, 'Q2_network.h5'))
-            self.policy_target = keras.models.load_model(os.path.join(load_path,'policy_target.h5'))  # sometimes this crashes, apparently a bug in keras
-            self.Q1_target = keras.models.load_model(os.path.join(load_path,'Q1_target.h5'))
-            self.Q2_target = keras.models.load_model(os.path.join(load_path, 'Q2_target.h5'))
+            #self.policy_target = keras.models.load_model(os.path.join(load_path,'policy_target.h5'))  # sometimes this crashes, apparently a bug in keras
+            #self.Q1_target = keras.models.load_model(os.path.join(load_path,'Q1_target.h5'))
+            #self.Q2_target = keras.models.load_model(os.path.join(load_path, 'Q2_target.h5'))
         except:
             print('EXCEPTION IN LOAD NETWORK')
             self.policy_network.load_weights(os.path.join(load_path, 'policy_network.h5')) # this requires model to be initialised exactly the same
