@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
     unstable = 0
 
-    max_std = 1  # for exploring
+    max_std = 0  # for exploring
     explore_rate = max_std
     alpha = 1
     # n_episodes = 10000
@@ -170,6 +170,7 @@ if __name__ == '__main__':
 
             outputs = env.map_parallel_step(np.array(actions).T, actual_params, continuous=True, scaling=action_scaling)
             next_states = []
+            print(actions)
 
             for i, o in enumerate(outputs):
                 next_state, reward, done, _, u = o

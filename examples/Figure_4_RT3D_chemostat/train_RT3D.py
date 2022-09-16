@@ -95,6 +95,8 @@ if __name__ == '__main__':
 
         for e in range(0, N_control_intervals): # run an episode
             inputs = [states, sequences]
+
+
             if episode < 1000 // skip:
                 actions = agent.get_actions(inputs, explore_rate = 1, test_episode = True, recurrent=True)
             else:

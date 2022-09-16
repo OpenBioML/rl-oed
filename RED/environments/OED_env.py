@@ -246,7 +246,7 @@ class OED_env():
         trajectory_solver = G.mapaccum('trajectory', int(N_control_intervals * control_interval_time / dt))
         return trajectory_solver
 
-    def gauss_newton(self, e,nlp,V, max_iter = 199, limited_mem = False):
+    def gauss_newton(self, e,nlp,V, max_iter = 3000, limited_mem = False):
         '''
         creates a gauss newton solver
         :param e: objective to minimise
@@ -651,7 +651,7 @@ class OED_env():
 
         if scaling is not None:
             us = scaling(us)
-            print(us)
+
         actual_params = DM(actual_params)
 
         N_control_intervals = len(us)

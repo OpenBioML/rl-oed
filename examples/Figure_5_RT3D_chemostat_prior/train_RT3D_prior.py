@@ -46,7 +46,35 @@ if __name__ == '__main__':
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
     except:
         pass
-    save_path = os.path.join('.', 'results')
+
+
+    if len(sys.argv) == 3:
+
+        if int(sys.argv[2]) <= 10:
+            prior = False
+        else:
+            prior = True
+        # for parameter scan
+        '''
+        exp = int(sys.argv[2]) - 1
+        # 3 learning rates
+        # 4 hl sizes
+        # 3 repeats per combination
+        n_repeats = 3
+        comb = exp // n_repeats
+        pol_learning_rate = pol_learning_rates[comb//len(hidden_layer_sizes)]
+        hidden_layer_size = hidden_layer_sizes[comb%len(hidden_layer_sizes)]
+        '''
+
+        save_path = sys.argv[1] + sys.argv[2] + '/'
+        print(n_episodes)
+
+    elif len(sys.argv) == 2:
+        save_path = sys.argv[1] + '/'
+
+    else:
+        save_path = os.path.join('.', 'results')
+
 
 
     #agent setup
@@ -68,6 +96,8 @@ if __name__ == '__main__':
     alpha = 1
     all_returns = []
     all_test_returns = []
+
+    test_episode = False
 
     #env setup
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
@@ -94,9 +124,9 @@ if __name__ == '__main__':
         for e in range(0, N_control_intervals): # run an episode
             inputs = [states, sequences]
             if episode < 1000 // skip:
-                actions = agent.get_actions(inputs, explore_rate = 1, test_episode = True, recurrent=True)
+                actions = agent.get_actions(inputs, explore_rate = 1, test_episode =test_episode, recurrent=True)
             else:
-                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=True, recurrent=True)
+                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=test_episode, recurrent=True)
 
             e_actions.append(actions)
             outputs = env.map_parallel_step(np.array(actions).T, actual_params, continuous = True)
@@ -120,6 +150,8 @@ if __name__ == '__main__':
                     e_returns[i] += reward
             states = next_states
 
+        if test_episode:
+            trajectories = trajectories[:-1]
         for trajectory in trajectories:
             if np.all( [np.all(np.abs(trajectory[i][0]) <= 1) for i in range(len(trajectory))] ) and not math.isnan(np.sum(trajectory[-1][0])): # check for instability
                 agent.memory.append(trajectory)
@@ -133,12 +165,16 @@ if __name__ == '__main__':
                 update_count += 1
                 policy = update_count % policy_delay == 0
 
-                agent.Q_update(policy=policy, fitted=False, recurrent=True)
+                agent.Q_update(policy=policy, fitted=False, recurrent=True, low_mem=False)
             print('fitting time', time.time() - t)
 
         explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * max_std
 
-
+        if test_episode:
+            all_returns.extend(e_returns[:-1])
+            all_test_returns.append(np.sum(np.array(e_rewards)[-1, :]))
+        else:
+            all_returns.extend(e_returns)
         all_returns.extend(e_returns)
         print()
         print('EPISODE: ', episode, episode*skip)
@@ -147,15 +183,27 @@ if __name__ == '__main__':
         print('av return: ', np.mean(all_returns[-skip:]))
         print()
 
+        if test_episode:
+            print('test actions:', np.array(e_actions)[:, -1])
+            print('test rewards:', np.array(e_rewards)[-1, :])
+            print('test return:', np.sum(np.array(e_rewards)[-1, :]))
+            print()
+
     #plot and save results
     agent.save_network(save_path)
     np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
     np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
 
+    if test_episode:
+        np.save(save_path + '/all_test_returns.npy', np.array(all_test_returns))
+
 
     t = np.arange(N_control_intervals) * int(control_interval_time)
 
+    print(all_returns)
+    print(agent.actions)
 
-    plt.plot(all_returns)
-    plt.show()
+
+    #plt.plot(all_returns)
+    #plt.show()
 
