@@ -341,11 +341,11 @@ class OED_env():
         print('sym traj:', est_trajectory_sym.shape)
         print('traj:', trajectory.shape)
 
-        e = trajectory[0:self.n_observed_variables, :].T - est_trajectory_sym[0:self.n_observed_variables, :].T
+        e = (trajectory[0:self.n_observed_variables, :].T - est_trajectory_sym[0:self.n_observed_variables, :].T)/(0.05 * trajectory[0:self.n_observed_variables, :].T + 0.00000001)
         print('e shape:', e.shape)
         print(dot(e, e).shape)
 
-        nlp = {'x': sym_theta, 'f': 0.5 * dot(e / (0.05 * trajectory[0:self.n_observed_variables, :].T + 0.00000001),
+        nlp = {'x': sym_theta, 'f': 0.5 * dot(e ,
                                               e)}  # weighted least squares
         print('nlp initialised')
         #solver = self.gauss_newton(e, nlp, sym_theta, max_iter = 100000)
@@ -372,14 +372,16 @@ class OED_env():
             u = u_solver(x0=self.u0, lbx = self.input_bounds[:,0], ubx = self.input_bounds[:,1])['x']
             self.us.append(u.elements())
         else: #RL step
-            if continuous:
-                u = action
+            if not continuous:
+                u = self.actions_to_inputs(action)
             else:
-                u = self.action_to_input(action).T
-            if scaling:
-                u = scaling(u)
+                u = self.input_bounds[:, 0].reshape(-1, 1) + (
+                            self.input_bounds[:, 1] - self.input_bounds[:, 0]).reshape(-1, 1) * action
 
-            self.us.append(u)
+            if scaling is not None:
+                u = scaling(u)
+            self.us.append(u[0])
+
         N_control_intervals = len(self.us)
         #N_control_intervals = 12
         sampled_trajectory_solver = self.get_sampled_trajectory_solver(N_control_intervals, self.control_interval_time, self.dt) # the sampled trajectory seen by the agent
@@ -448,7 +450,7 @@ class OED_env():
             #print('det adfa: ', det_FIM)
             #print(det_FIM - self.detFIMs[-2])
         except:
-
+            print('return')
             reward = logdet_FIM
 
         if math.isnan(reward):
