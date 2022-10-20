@@ -1,5 +1,5 @@
 # RED
-[Deep Reinforcement Learning for Optimal Experimental Design in Biology](https://www.biorxiv.org/content/10.1101/2022.05.09.491138.abstract): 
+[Deep Reinforcement Learning for Optimal Experimental Design in Biology](https://www.biorxiv.org/content/10.1101/2022.05.09.491138.abstract)
 
 ### Installation
 
