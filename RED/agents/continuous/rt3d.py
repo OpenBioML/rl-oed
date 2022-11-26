@@ -7,11 +7,14 @@ import numpy as np
 import tensorflow as tf
 from keras.api._v2 import keras
 
+
 class RT3DAgent:
     '''
     class that implements the RT3D agent
     '''
-    def __init__(self, val_layer_sizes, pol_layer_sizes, gamma = 1, val_learning_rate = 0.001, pol_learning_rate = 0.001, policy_act = tf.keras.activations.linear):
+
+    def __init__(self, val_layer_sizes, pol_layer_sizes, gamma=1, val_learning_rate=0.001, pol_learning_rate=0.001,
+                 policy_act=tf.keras.activations.linear):
         '''
         initialises the agent
         :param val_layer_sizes: layer sizes fo rthe Q networks
@@ -29,7 +32,7 @@ class RT3DAgent:
         self.scale = 1
         self.polyak = 0.995
         self.batch_size = 256
-        self.policy_network = self.initialise_network(pol_layer_sizes, out_act = policy_act, scale = self.scale)
+        self.policy_network = self.initialise_network(pol_layer_sizes, out_act=policy_act, scale=self.scale)
         self.policy_opt = keras.optimizers.Adam(learning_rate=pol_learning_rate)
         self.policy_act = policy_act
 
@@ -63,7 +66,7 @@ class RT3DAgent:
         self.next_sequences = []
         self.all_returns = []
 
-    def initialise_network(self, layer_sizes, out_act = tf.keras.activations.linear, scale = 1.):
+    def initialise_network(self, layer_sizes, out_act=tf.keras.activations.linear, scale=1.):
         '''
         initialises a neural network
         :param layer_sizes: the layer sizes of each part of the network
@@ -73,18 +76,18 @@ class RT3DAgent:
         '''
         input_size, sequence_size, rec_sizes, hidden_sizes, output_size = layer_sizes
 
-        S_input = keras.Input(shape = (input_size,), name = "S_input")
+        S_input = keras.Input(shape=(input_size,), name="S_input")
 
         if sequence_size != 0:
-            sequence_input = keras.Input(shape = (None,sequence_size), name = 'sequence_input')
+            sequence_input = keras.Input(shape=(None, sequence_size), name='sequence_input')
 
             rec_out = sequence_input
             for i, rec_size in enumerate(rec_sizes):
 
-                if i == len(rec_sizes) -1:
+                if i == len(rec_sizes) - 1:
                     rec_out = layers.GRU(rec_size)(rec_out)
                 else:
-                    rec_out = layers.GRU(rec_size, input_shape = (None,sequence_size), return_sequences=True)(rec_out)
+                    rec_out = layers.GRU(rec_size, input_shape=(None, sequence_size), return_sequences=True)(rec_out)
 
             concat = layers.concatenate([S_input, rec_out])
         else:
@@ -93,10 +96,10 @@ class RT3DAgent:
         hl = concat
 
         for i, hl_size in enumerate(hidden_sizes):
-            hl = layers.Dense(hl_size,activation=tf.nn.relu, name = 'hidden_' + str(i))(hl)
+            hl = layers.Dense(hl_size, activation=tf.nn.relu, name='hidden_' + str(i))(hl)
 
-        out =  layers.Dense(layer_sizes[-1], name='mu', activation=out_act)(hl)
-        out = layers.Lambda(lambda x: x*scale)(out)
+        out = layers.Dense(layer_sizes[-1], name='mu', activation=out_act)(hl)
+        out = layers.Lambda(lambda x: x * scale)(out)
 
         if sequence_size != 0:
             network = keras.Model(
@@ -110,8 +113,7 @@ class RT3DAgent:
             )
         return network
 
-
-    def get_actions_dist(self, inputs, explore_rate, test_episode = False, recurrent = True):
+    def get_actions_dist(self, inputs, explore_rate, test_episode=False, recurrent=True):
         '''
         gets actions by adding random noise to the actions
         :param inputs: RL inputs
@@ -125,7 +127,6 @@ class RT3DAgent:
             states, sequences = inputs
             sequences = pad_sequences(sequences, maxlen=self.max_length, dtype='float64')
 
-
             actions = self.policy_network([np.array(states), sequences])
         else:
             states = inputs[0]
@@ -134,7 +135,7 @@ class RT3DAgent:
 
         if test_episode:
 
-            actions[:-1] += np.random.normal(0, explore_rate,size = actions[:-1].shape)
+            actions[:-1] += np.random.normal(0, explore_rate, size=actions[:-1].shape)
 
         else:
             actions += np.random.normal(0, explore_rate, size=actions.shape)
@@ -142,7 +143,7 @@ class RT3DAgent:
 
         return actions
 
-    def get_actions(self, inputs, explore_rate, test_episode = False, recurrent = True):
+    def get_actions(self, inputs, explore_rate, test_episode=False, recurrent=True):
         '''
         gets actions by adding choosing random action between the min and max bounds with probablilty explore_rate
         :param inputs: RL inputs
@@ -155,17 +156,17 @@ class RT3DAgent:
         states, sequences = inputs
 
         if test_episode:
-            rng = np.random.random(len(states)-1)
+            rng = np.random.random(len(states) - 1)
         else:
             rng = np.random.random(len(states))
 
         explore_inds = np.where(rng < explore_rate)[0]
         exploit_inds = np.where(rng >= explore_rate)[0]
 
-        if test_episode: exploit_inds = np.append(exploit_inds, len(states)-1)
+        if test_episode: exploit_inds = np.append(exploit_inds, len(states) - 1)
 
-        explore_actions = np.random.uniform(self.action_bounds[0], self.action_bounds[1], size = (len(explore_inds), self.layer_sizes[-1]))
-
+        explore_actions = np.random.uniform(self.action_bounds[0], self.action_bounds[1],
+                                            size=(len(explore_inds), self.layer_sizes[-1]))
 
         actions = np.zeros((len(states), self.layer_sizes[-1]), dtype='float64')
 
@@ -173,31 +174,29 @@ class RT3DAgent:
             sequences = pad_sequences(sequences, maxlen=self.max_length, dtype='float64')
             exploit_actions = self.policy_network([np.array(states)[exploit_inds], np.array(sequences)[exploit_inds]])
 
-            exploit_actions += np.random.normal(0, explore_rate*self.std*2, size=exploit_actions.shape)
+            exploit_actions += np.random.normal(0, explore_rate * self.std * 2, size=exploit_actions.shape)
 
             exploit_actions = np.clip(exploit_actions, self.action_bounds[0], self.action_bounds[1])
 
             actions[exploit_inds] = exploit_actions
 
-
         actions[explore_inds] = explore_actions
 
-        exploit_flags = np.zeros((len(states)), dtype=np.int32) #just for interest
+        exploit_flags = np.zeros((len(states)), dtype=np.int32)  # just for interest
         exploit_flags[exploit_inds] = 1
 
-        return actions#, exploit_flags
+        return actions  # , exploit_flags
 
     def get_action(self, s, explore_rate):
         a = self.policy_network(s)
-        noise = np.random.normal(0, explore_rate,size = a.shape)
+        noise = np.random.normal(0, explore_rate, size=a.shape)
 
         a += noise
         a = np.clip(a, -1, 1)
 
         return a
 
-
-    def get_inputs_targets(self, recurrent = True, monte_carlo = False, fitted = False):
+    def get_inputs_targets(self, recurrent=True, monte_carlo=False, fitted=False):
         '''
         assembles the Q learning inputs and trgets from agents memory
         :param recurrent:
@@ -210,13 +209,13 @@ class RT3DAgent:
         for i, trajectory in enumerate(self.memory):
 
             e_rewards = []
-            sequence = [[0]*self.layer_sizes[1]]
+            sequence = [[0] * self.layer_sizes[1]]
             for j, transition in enumerate(trajectory):
                 self.sequences.append(copy.deepcopy(sequence))
                 state, action, reward, next_state, done = transition
 
                 sequence.append(np.concatenate((state, action)))
-                #one_hot_a = np.array([int(i == action) for i in range(self.layer_sizes[-1])])/10
+                # one_hot_a = np.array([int(i == action) for i in range(self.layer_sizes[-1])])/10
                 self.next_sequences.append(copy.deepcopy(sequence))
                 self.states.append(state)
                 self.next_states.append(next_state)
@@ -233,24 +232,20 @@ class RT3DAgent:
                     e_values.insert(0, e_rewards[-i] + e_values[0] * self.gamma)
                 self.all_returns.extend(e_values)
 
-
             #
             # remove items if agents memroy is full
 
             if len(self.states) > self.mem_size:
-                del self.sequences[:len(self.states)-self.mem_size]
-                del self.next_sequences[:len(self.states)-self.mem_size]
-                del self.next_states[:len(self.states)-self.mem_size]
-                del self.actions[:len(self.states)-self.mem_size]
-                del self.rewards[:len(self.states)-self.mem_size]
-                del self.dones[:len(self.states)-self.mem_size]
+                del self.sequences[:len(self.states) - self.mem_size]
+                del self.next_sequences[:len(self.states) - self.mem_size]
+                del self.next_states[:len(self.states) - self.mem_size]
+                del self.actions[:len(self.states) - self.mem_size]
+                del self.rewards[:len(self.states) - self.mem_size]
+                del self.dones[:len(self.states) - self.mem_size]
                 del self.states[:len(self.states) - self.mem_size]
 
-
-
-
         if recurrent:
-            padded = pad_sequences(self.sequences, maxlen = self.max_length, dtype='float64')[:self.mem_size]
+            padded = pad_sequences(self.sequences, maxlen=self.max_length, dtype='float64')[:self.mem_size]
             next_padded = pad_sequences(self.next_sequences, maxlen=self.max_length, dtype='float64')[:self.mem_size]
 
         # TODO: this is really memory inefficient, take random sample before initialising arrays
@@ -263,8 +258,7 @@ class RT3DAgent:
 
         self.memory = []  # reset memory after this information has been extracted
 
-
-        if monte_carlo : # only take last experiences
+        if monte_carlo:  # only take last experiences
             '''
             batch_size = self.batch_size
             if states.shape[0] > batch_size:
@@ -282,7 +276,7 @@ class RT3DAgent:
         elif not fitted:
             # take random sample
 
-            sample_size = int(self.batch_size*10)
+            sample_size = int(self.batch_size * 10)
 
             indices = np.random.randint(max(0, states.shape[0] - self.mem_size), states.shape[0], size=(sample_size))
 
@@ -297,7 +291,7 @@ class RT3DAgent:
                 padded = padded[indices]
                 next_padded = next_padded[indices]
 
-        #values = self.predict([states, padded])
+        # values = self.predict([states, padded])
 
         if monte_carlo:
             targets = all_returns
@@ -316,21 +310,22 @@ class RT3DAgent:
 
             # target policy smoothing
 
-            noise = np.clip(np.random.normal( 0, self.std, next_actions.shape), self.noise_bounds[0], self.noise_bounds[1])
-
+            noise = np.clip(np.random.normal(0, self.std, next_actions.shape), self.noise_bounds[0],
+                            self.noise_bounds[1])
 
             next_actions = np.clip(next_actions + noise, self.action_bounds[0], self.action_bounds[1])
 
-            #next_actions = np.vstack((actions[1:], actions[0])) #sarsa
-            Q1 = Q1_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q1_target.predict([tf.concat((next_states, next_actions), 1)])
-            Q2 = Q2_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q2_target.predict([tf.concat((next_states, next_actions), 1)])
+            # next_actions = np.vstack((actions[1:], actions[0])) #sarsa
+            Q1 = Q1_target.predict(
+                [tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q1_target.predict(
+                [tf.concat((next_states, next_actions), 1)])
+            Q2 = Q2_target.predict(
+                [tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q2_target.predict(
+                [tf.concat((next_states, next_actions), 1)])
 
             next_values = np.minimum(Q1, Q2)
-            #next_values = Q1
-            targets = rewards + self.gamma*(1-dones)*next_values
-
-
-
+            # next_values = Q1
+            targets = rewards + self.gamma * (1 - dones) * next_values
 
         randomize = np.arange(len(states))
         np.random.shuffle(randomize)
@@ -343,11 +338,11 @@ class RT3DAgent:
         targets = targets[randomize]
 
         inputs = [states, padded] if recurrent else [states]
-        #print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
-        gc.collect() # clear ol dstuff from memory
+        # print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
+        gc.collect()  # clear ol dstuff from memory
         return inputs, actions, targets
 
-    def get_inputs_targets_low_mem(self, recurrent = True, monte_carlo = False, fitted = False):
+    def get_inputs_targets_low_mem(self, recurrent=True, monte_carlo=False, fitted=False):
         '''
         assembles the Q learning inputs and trgets from agents memory, uses less memory but is slower
         :param recurrent:
@@ -356,16 +351,15 @@ class RT3DAgent:
         :return:
         '''
 
-        #TODO:: enable all the options here
+        # TODO:: enable all the options here
         self.memory = self.memory[-self.mem_size:]
 
-        sample_size = int(self.batch_size*10)
+        sample_size = int(self.batch_size * 10)
 
         indices = np.random.randint(0, min(self.mem_size, len(self.memory)), size=(sample_size))
 
-
         sample = np.array(self.memory)[indices]
-        #print(sample)
+        # print(sample)
 
         sequences = []
         next_sequences = []
@@ -393,8 +387,6 @@ class RT3DAgent:
                 e_rewards.append(reward)
                 dones.append(done)
 
-
-
         padded = pad_sequences(sequences, maxlen=self.max_length, dtype='float64')
         next_padded = pad_sequences(next_sequences, maxlen=self.max_length, dtype='float64')
 
@@ -404,10 +396,7 @@ class RT3DAgent:
         states = np.array(states)
         actions = np.array(actions)
 
-
-
-
-        #values = self.predict([states, padded])
+        # values = self.predict([states, padded])
         Q1_target = self.Q1_target
         Q2_target = self.Q2_target
         policy_target = self.policy_target
@@ -416,21 +405,21 @@ class RT3DAgent:
 
         # target policy smoothing
 
-        noise = np.clip(np.random.normal( 0, self.std, next_actions.shape), self.noise_bounds[0], self.noise_bounds[1])
-
+        noise = np.clip(np.random.normal(0, self.std, next_actions.shape), self.noise_bounds[0], self.noise_bounds[1])
 
         next_actions = np.clip(next_actions + noise, self.action_bounds[0], self.action_bounds[1])
 
-        #next_actions = np.vstack((actions[1:], actions[0])) #sarsa
-        Q1 = Q1_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q1_target.predict([tf.concat((next_states, next_actions), 1)])
-        Q2 = Q2_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q2_target.predict([tf.concat((next_states, next_actions), 1)])
+        # next_actions = np.vstack((actions[1:], actions[0])) #sarsa
+        Q1 = Q1_target.predict(
+            [tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q1_target.predict(
+            [tf.concat((next_states, next_actions), 1)])
+        Q2 = Q2_target.predict(
+            [tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q2_target.predict(
+            [tf.concat((next_states, next_actions), 1)])
 
         next_values = np.minimum(Q1, Q2)
-        #next_values = Q1
-        targets = rewards + self.gamma*(1-dones)*next_values
-
-
-
+        # next_values = Q1
+        targets = rewards + self.gamma * (1 - dones) * next_values
 
         randomize = np.arange(len(states))
         np.random.shuffle(randomize)
@@ -443,7 +432,7 @@ class RT3DAgent:
         targets = targets[randomize]
 
         inputs = [states, padded]
-        #print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
+        # print('inputs, actions, targets', inputs[0].shape, actions.shape, targets.shape)
 
         return inputs, actions, targets
 
@@ -472,7 +461,7 @@ class RT3DAgent:
 
         return rate
 
-    def Q_update(self, recurrent = True, monte_carlo =False, policy = True, fitted = True, verbose = False, low_mem = True):
+    def Q_update(self, recurrent=True, monte_carlo=False, policy=True, fitted=True, verbose=False, low_mem=True):
         '''
         Updates the Q learning parameters
         :param recurrent:
@@ -499,9 +488,8 @@ class RT3DAgent:
             epochs = 500
             patience = 10
 
-
             self.reset_weights(policy=policy)
-            callback = tf.keras.callbacks.EarlyStopping(monitor = 'loss', patience=patience, restore_best_weights=True)
+            callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, restore_best_weights=True)
             callbacks = [callback]
         else:
             epochs = 1
@@ -510,27 +498,35 @@ class RT3DAgent:
             callbacks = []
 
         if recurrent:
-            history1 = self.Q1_network.fit([tf.concat((states, actions), 1), sequences], targets, epochs = epochs, verbose = verbose, validation_split =0., batch_size=self.batch_size, callbacks = callbacks)
-            history2 = self.Q2_network.fit([tf.concat((states, actions), 1), sequences], targets, epochs = epochs, verbose = verbose, validation_split =0., batch_size=self.batch_size, callbacks = callbacks)
+            history1 = self.Q1_network.fit([tf.concat((states, actions), 1), sequences], targets, epochs=epochs,
+                                           verbose=verbose, validation_split=0., batch_size=self.batch_size,
+                                           callbacks=callbacks)
+            history2 = self.Q2_network.fit([tf.concat((states, actions), 1), sequences], targets, epochs=epochs,
+                                           verbose=verbose, validation_split=0., batch_size=self.batch_size,
+                                           callbacks=callbacks)
         else:
-            history1 = self.Q1_network.fit([tf.concat((states, actions), 1)], targets, epochs = epochs, verbose = False, validation_split =0., batch_size=self.batch_size, callbacks = callbacks)
-            history2 = self.Q2_network.fit([tf.concat((states, actions), 1)], targets, epochs = epochs, verbose = False, validation_split =0., batch_size=self.batch_size, callbacks = callbacks)
-
+            history1 = self.Q1_network.fit([tf.concat((states, actions), 1)], targets, epochs=epochs, verbose=False,
+                                           validation_split=0., batch_size=self.batch_size, callbacks=callbacks)
+            history2 = self.Q2_network.fit([tf.concat((states, actions), 1)], targets, epochs=epochs, verbose=False,
+                                           validation_split=0., batch_size=self.batch_size, callbacks=callbacks)
 
         if policy:
-            batches = math.ceil(states.shape[0]/self.batch_size)
+            batches = math.ceil(states.shape[0] / self.batch_size)
 
             epoch_losses = []
             for epoch in range(epochs):
                 batch_losses = []
                 for batch in range(batches):
-
-                    start = batch*self.batch_size
+                    start = batch * self.batch_size
                     end = start + self.batch_size
 
                     with tf.GradientTape() as tape:
-                        pred_actions = self.policy_network([states[start:end], sequences[start:end]]) if recurrent else self.policy_network([states[start:end]])
-                        pred_values = self.Q1_network([tf.concat((states[start:end], pred_actions), 1), sequences[start:end]]) if recurrent else self.Q1_network([tf.concat((states[start:end], pred_actions), 1)])
+                        pred_actions = self.policy_network(
+                            [states[start:end], sequences[start:end]]) if recurrent else self.policy_network(
+                            [states[start:end]])
+                        pred_values = self.Q1_network([tf.concat((states[start:end], pred_actions), 1),
+                                                       sequences[start:end]]) if recurrent else self.Q1_network(
+                            [tf.concat((states[start:end], pred_actions), 1)])
 
                         loss = -tf.math.reduce_mean(pred_values)
 
@@ -556,35 +552,33 @@ class RT3DAgent:
                         wait += 1
 
                     if wait >= patience:
-
                         self.policy_network.set_weights(best_weights)
 
                         break
 
-            #print('Policy epochs: ', len(epoch_losses), epoch_losses[0], epoch_losses[-1])
+            # print('Policy epochs: ', len(epoch_losses), epoch_losses[0], epoch_losses[-1])
 
-        if not fitted and not monte_carlo and policy: # update target nbetworks when we update the policy
+        if not fitted and not monte_carlo and policy:  # update target nbetworks when we update the policy
             self.update_target_network(self.Q1_network, self.Q1_target, self.polyak)
             self.update_target_network(self.Q2_network, self.Q2_target, self.polyak)
             self.update_target_network(self.policy_network, self.policy_target, self.polyak)
 
-
-    def save_network(self, save_path): # tested
+    def save_network(self, save_path):  # tested
         '''
         saves networks to file
         :param save_path:
         :return:
         '''
-        #print(self.network.layers[1].get_weights())
-        self.policy_network.save(os.path.join(save_path,'policy_network.h5'))
+        # print(self.network.layers[1].get_weights())
+        self.policy_network.save(os.path.join(save_path, 'policy_network.h5'))
         self.Q1_network.save(os.path.join(save_path, 'Q1_network.h5'))
         self.Q2_network.save(os.path.join(save_path, 'Q2_network.h5'))
 
         self.policy_target.save(os.path.join(save_path, 'policy_target.h5'))
         self.Q1_target.save(os.path.join(save_path, 'Q1_target.h5'))
-        self.Q2_target.save(os.path.join(save_path,'Q2_target.h5'))
+        self.Q2_target.save(os.path.join(save_path, 'Q2_target.h5'))
 
-    def load_network(self, load_path): #tested
+    def load_network(self, load_path):  # tested
         '''
         load netowkrs from files
         :param load_path:
@@ -592,29 +586,31 @@ class RT3DAgent:
         '''
         print('LOADING NETWORKS, UNCOMMENT HERE TO ALSO LOAD TARGET NETWORKS')
 
-
         try:
-            self.policy_network = keras.models.load_model(os.path.join(load_path, 'policy_network.h5')) # sometimes this crashes, apparently a bug in keras
+            self.policy_network = keras.models.load_model(
+                os.path.join(load_path, 'policy_network.h5'))  # sometimes this crashes, apparently a bug in keras
             self.Q1_network = keras.models.load_model(os.path.join(load_path, 'Q1_network.h5'))
             self.Q2_network = keras.models.load_model(os.path.join(load_path, 'Q2_network.h5'))
-            #self.policy_target = keras.models.load_model(os.path.join(load_path,'policy_target.h5'))  # sometimes this crashes, apparently a bug in keras
-            #self.Q1_target = keras.models.load_model(os.path.join(load_path,'Q1_target.h5'))
-            #self.Q2_target = keras.models.load_model(os.path.join(load_path, 'Q2_target.h5'))
+            # self.policy_target = keras.models.load_model(os.path.join(load_path,'policy_target.h5'))  # sometimes this crashes, apparently a bug in keras
+            # self.Q1_target = keras.models.load_model(os.path.join(load_path,'Q1_target.h5'))
+            # self.Q2_target = keras.models.load_model(os.path.join(load_path, 'Q2_target.h5'))
         except:
             print('EXCEPTION IN LOAD NETWORK')
-            self.policy_network.load_weights(os.path.join(load_path, 'policy_network.h5')) # this requires model to be initialised exactly the same
+            self.policy_network.load_weights(
+                os.path.join(load_path, 'policy_network.h5'))  # this requires model to be initialised exactly the same
             self.Q1_network.load_weights(os.path.join(load_path, 'Q1_network.h5'))
             self.Q2_network.load_weights(os.path.join(load_path, 'Q2_network.h5'))
-            self.policy_target.load_weights(os.path.join(load_path, 'policy_target.h5'))  # this requires model to be initialised exactly the same
-            self.Q1_target.load_weights(os.path.join(load_path,'Q1_target.h5'))
+            self.policy_target.load_weights(
+                os.path.join(load_path, 'policy_target.h5'))  # this requires model to be initialised exactly the same
+            self.Q1_target.load_weights(os.path.join(load_path, 'Q1_target.h5'))
             self.Q2_target.load_weights(os.path.join(load_path, 'Q2_target.h5'))
 
-    def reset_weights(self, policy = True):
+    def reset_weights(self, policy=True):
         '''
         Reinitialises weights to random values
         '''
-        #sess = tf.keras.backend.get_session()
-        #sess.run(tf.global_variables_initializer())
+        # sess = tf.keras.backend.get_session()
+        # sess.run(tf.global_variables_initializer())
         del self.Q1_network
         del self.Q2_network
         if policy: del self.policy_network
@@ -626,9 +622,10 @@ class RT3DAgent:
         opt = keras.optimizers.Adam(learning_rate=self.val_learning_rate)  # no nfitted methods
         self.Q1_network.compile(optimizer=opt, loss='mean_squared_error')
         self.Q2_network.compile(optimizer=opt, loss='mean_squared_error')
-        if policy: self.policy_network = self.initialise_network(self.layer_sizes, out_act=self.policy_act, scale=self.scale)
+        if policy: self.policy_network = self.initialise_network(self.layer_sizes, out_act=self.policy_act,
+                                                                 scale=self.scale)
 
-    def update_target_network(self, source, target,tau):
+    def update_target_network(self, source, target, tau):
         '''
         updates the target networks using Polyack averaging
         :param source:
@@ -636,7 +633,7 @@ class RT3DAgent:
         :param tau:
         :return:
         '''
-        source_weights  = source.variables
+        source_weights = source.variables
         target_weights = target.variables
 
         for (source, target) in zip(source_weights, target_weights):
