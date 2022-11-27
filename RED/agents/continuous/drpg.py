@@ -118,18 +118,19 @@ class ActorNetwork(nn.Module):
 
 
 class DRPGAgent:
-    def __init__(self, layer_sizes: list[int], learning_rate: float = 0.001, critic=True):
+    def __init__(self, layer_sizes: list[int], actor_network: nn.Module, critic_network: nn.Module = None,
+                 learning_rate: float = 0.001):
         self.memory = []
         self.layer_sizes = layer_sizes
         self.gamma = 1.
 
-        self.critic = critic
-        if critic:
-            self.critic_network = self.initialise_network(layer_sizes, critic_nw=True)
+        self.actor_network = actor_network
+        self.critic_network = critic_network
+
+        if critic_network is not None:
             self.critic_opt = torch.optim.Adam(self.critic_network.parameters(), lr=learning_rate)
             self.critic_loss = nn.MSELoss()
 
-        self.actor_network = self.initialise_network(layer_sizes)
         self.actor_opt = torch.optim.Adam(self.actor_network.parameters(), lr=learning_rate)
 
         self.values = []
@@ -143,13 +144,6 @@ class DRPGAgent:
         self.sequences = []
         self.next_sequences = []
         self.all_values = []
-
-    def initialise_network(self, layer_sizes: list[int], critic_nw: bool = False) -> nn.Module:
-        input_size, sequence_size, rec_sizes, hidden_sizes, output_size = layer_sizes
-        if critic_nw:
-            return CriticNetwork(input_size, sequence_size, rec_sizes, hidden_sizes)
-        else:
-            return ActorNetwork(input_size, sequence_size, rec_sizes, hidden_sizes, output_size)
 
     def get_actions(self, inputs):
 
@@ -176,47 +170,31 @@ class DRPGAgent:
         print('loss actor', loss_actor.shape)
         return loss_actor
 
-    def log_probability(self, actions, mu, log_std):
-        EPS = 1e-8
-        pre_sum = -0.5 * (((actions - mu) / (torch.exp(log_std) + EPS)) ** 2 + 2 * log_std + np.log(2 * torch.pi))
+    def log_probability(self, actions, mu, log_std, eps: float = 1e-8):
+        pre_sum = -0.5 * (((actions - mu) / (torch.exp(log_std) + eps)) ** 2 + 2 * log_std + np.log(2 * torch.pi))
         return torch.sum(pre_sum, dim=1)
-
-    def policy_update(self):
-
-        inputs, actions, returns = self.get_inputs_targets()
-        if self.critic:
-            expected_returns: torch.Tensor = self.critic_network(inputs)
-            returns -= expected_returns.reshape(-1)
-            self.critic_network.fit(inputs, returns, epochs=1)
-
-        with tf.GradientTape() as tape:
-            loss = self.loss(inputs, actions, returns)
-            grads = tape.gradient(loss, self.actor_network.trainable_variables)
-            self.actor_opt.apply_gradients(zip(grads, self.actor_network.trainable_variables))
 
     def Q_update(self, policy: bool, *args, **kwargs):
         inputs, actions, returns = self.get_inputs_targets()
-        if self.critic:
+        if self.critic_network is not None:
             expected_returns: torch.Tensor = self.critic_network(inputs)
             returns -= expected_returns.reshape(-1)
-            # self.critic_network.fit(inputs, returns, epochs=1)
-            # pytorch code to update critic network with returns (instead of using fit)
-            self.critic_opt.zero_grad()  # clear gradients for next train
+            self.critic_opt.zero_grad()
             outputs = self.critic_network(inputs)
             loss = self.critic_loss(outputs, returns)
-            loss.backward()  # backpropagation, compute gradients
-            self.critic_opt.step()  # apply gradients
+            loss.backward()
+            self.critic_opt.step()
 
         if policy:
-            # convert gradienttape to pytorch
-            self.actor_network.zero_grad()  # clear gradients for next train
+            self.actor_network.zero_grad()
             loss = self.loss(inputs, actions, returns)
-            loss.backward()  # backpropagation, compute gradients
-            self.actor_opt.step()  # apply gradients
+            loss.backward()
+            self.actor_opt.step()
 
     def get_inputs_targets(self):
         '''
-        gets fitted Q inputs and calculates targets for training the Q-network for episodic training
+        Gets fitted Q inputs and calculates targets for training the Q-network for episodic training.
+        :return: inputs, actions, all_values
         '''
 
         # iterate over all experience in memory and create fitted Q targets
@@ -279,3 +257,13 @@ class DRPGAgent:
             print('EXCEPTION IN LOAD NETWORK')
             self.actor_network.load_weights(
                 load_path + '/saved_network.h5')  # this requires model to be initialised exactly the same
+
+
+def get_drpg_agent(layer_sizes, critic: bool, learning_rate: float):
+    input_size, sequence_size, rec_sizes, hidden_sizes, output_size = layer_sizes
+    actor_network = ActorNetwork(input_size, sequence_size, rec_sizes, hidden_sizes, output_size)
+    if critic:
+        critic_network = CriticNetwork(input_size, sequence_size, rec_sizes, hidden_sizes)
+    else:
+        critic_network = None
+    return DRPGAgent(layer_sizes, actor_network, critic_network, learning_rate)
