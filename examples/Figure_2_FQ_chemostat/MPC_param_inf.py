@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
-from RED.environments.OED_env import OED_env
+from RED.environments.oed import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
 import json
 

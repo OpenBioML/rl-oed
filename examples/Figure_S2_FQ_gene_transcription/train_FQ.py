@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 import time
 import tensorflow as tf
-from RED.agents.fitted_Q_agents import KerasFittedQAgent
-from RED.environments.OED_env import OED_env
+from RED.agents.fitted_q.agent import KerasFittedQAgent
+from RED.environments.oed import OED_env
 from RED.environments.gene_transcription.xdot_gene_transcription import xdot
 
 def disablePrint():

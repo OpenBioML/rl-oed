@@ -16,8 +16,8 @@ import matplotlib.pyplot as plt
 
 import time
 
-from RED.agents.fitted_Q_agents import KerasFittedQAgent
-from RED.environments.OED_env import OED_env
+from RED.agents.fitted_q.agent import KerasFittedQAgent
+from RED.environments.oed import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
 import json
 

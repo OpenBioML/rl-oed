@@ -1,15 +1,13 @@
-import sys
+import gc
+import math
 import os
+import time
+
 import numpy as np
 import tensorflow as tf
-import math
-import random
-import time
-from tensorflow import keras
+from keras.api._v2 import keras
 
 
-import matplotlib.pyplot as plt
-import gc
 class FittedQAgent():
 
     '''

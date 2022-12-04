@@ -12,8 +12,8 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
-from RED.agents.continuous_agents import RT3D_agent
-from RED.environments.OED_env import OED_env
+from RED.agents.continuous.rt3d import RT3D_agent
+from RED.environments.oed import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
 
 import time

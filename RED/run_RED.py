@@ -14,9 +14,8 @@ from casadi import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-from RED.agents.continuous_agents import RT3D_agent
-from RED.environments.OED_env import OED_env
+from RED.agents import RT3D_agent
+from RED.environments import OED_env
 
 import time
 

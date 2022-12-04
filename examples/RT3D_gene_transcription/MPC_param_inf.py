@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 
 import time
 import tensorflow as tf
-from RED.environments.OED_env import OED_env
+from RED.environments.oed import OED_env
 from RED.environments.gene_transcription.xdot_gene_transcription import xdot
-from RED.agents.continuous_agents import RT3D_agent
+from RED.agents.continuous.rt3d import RT3D_agent
 import multiprocessing
 import json
 import math
