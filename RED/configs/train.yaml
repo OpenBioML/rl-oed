@@ -4,7 +4,6 @@ defaults:
   - _self_
 
 model:
-  _target_: RED.agents.continuous_agents.RT3D_agent
   val_learning_rate: 0.0001
   pol_learning_rate: 0.00005
   policy_act: sigmoid
