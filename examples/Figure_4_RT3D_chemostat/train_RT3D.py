@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 
 import time
-from RED.agents.continuous.rt3d import RT3D_agent
+from RED.agents.continuous.rt3d import RT3DAgent
 from RED.environments.oed import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
 import tensorflow as tf
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     hidden_layer_size = [[64, 64], [128, 128]]
     pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], n_controlled_inputs]
     val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = RT3D_agent(val_layer_sizes = val_layer_sizes, pol_layer_sizes = pol_layer_sizes,  policy_act = tf.nn.sigmoid, val_learning_rate = 0.0001, pol_learning_rate = pol_learning_rate)#, pol_learning_rate=0.0001)
+    agent = RT3DAgent(val_layer_sizes = val_layer_sizes, pol_layer_sizes = pol_layer_sizes, policy_act = tf.nn.sigmoid, val_learning_rate = 0.0001, pol_learning_rate = pol_learning_rate)#, pol_learning_rate=0.0001)
     agent.batch_size = int(N_control_intervals * skip)
     agent.max_length = 11
     agent.mem_size = 500000000

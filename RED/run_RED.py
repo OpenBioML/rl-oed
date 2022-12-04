@@ -14,7 +14,7 @@ from casadi import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from RED.agents import RT3D_agent
+from RED.agents import RT3DAgent
 from RED.environments import OED_env
 
 import time
@@ -56,8 +56,8 @@ def run_RT3D(xdot, param_path):
                        hidden_layer_size[1], n_controlled_inputs]
     val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs,
                        hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = RT3D_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
-                       val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
+    agent = RT3DAgent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
+                      val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
     agent.batch_size = int(N_control_intervals * skip)
     agent.max_length = 11
     agent.mem_size = 500000000

@@ -14,7 +14,7 @@ import time
 import tensorflow as tf
 from RED.environments.oed import OED_env
 from RED.environments.gene_transcription.xdot_gene_transcription import xdot
-from RED.agents.continuous.rt3d import RT3D_agent
+from RED.agents.continuous.rt3d import RT3DAgent
 import multiprocessing
 import json
 import math
@@ -97,8 +97,8 @@ if __name__ == '__main__':
         val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, 0, [], [128, 128], 1]
 
     # agent = DRPG_agent(layer_sizes=layer_sizes, learning_rate = 0.0004, critic = True)
-    agent = RT3D_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
-                       val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
+    agent = RT3DAgent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
+                      val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
     agent.batch_size = int(N_control_intervals * skip)
     agent.max_length = N_control_intervals + 1
     agent.mem_size = 500000000

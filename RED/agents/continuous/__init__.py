@@ -1,4 +1,4 @@
-from drpg import DRPG_agent
-from rt3d import RT3D_agent
+from drpg import DRPGAgent
+from rt3d import RT3DAgent
 
-__all__ = ["DRPG_agent", "RT3D_agent"]
+__all__ = ["DRPGAgent", "RT3DAgent"]

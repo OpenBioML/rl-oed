@@ -7,8 +7,7 @@ import numpy as np
 import tensorflow as tf
 from keras.api._v2 import keras
 
-
-class RT3D_agent():
+class RT3DAgent:
     '''
     class that implements the RT3D agent
     '''

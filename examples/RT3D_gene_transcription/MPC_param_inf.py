@@ -14,7 +14,7 @@ import time
 import tensorflow as tf
 from RED.environments.oed import OED_env
 from RED.environments.gene_transcription.xdot_gene_transcription import xdot
-from RED.agents.continuous.rt3d import RT3D_agent
+from RED.agents.continuous.rt3d import RT3DAgent
 import multiprocessing
 import json
 import math
