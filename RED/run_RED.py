@@ -1,8 +1,10 @@
 
 import sys
 import os
-import argparse
 import importlib.util
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(IMPORT_PATH)
@@ -15,7 +17,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from RED.agents.continuous_agents import RT3D_agent
 from RED.environments.OED_env import OED_env
 
 import time
@@ -24,18 +25,16 @@ import time
 import tensorflow as tf
 
 import multiprocessing
-import json
 
 
 
 
-
-def run_RT3D(xdot, param_path):
+@hydra.main(config_path="configs", config_name="train")
+def run_RT3D(cfg : DictConfig):
     # setup
     n_cores = multiprocessing.cpu_count()
-    params = json.load(open(param_path))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
+    _, n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
+        [cfg.environment[k] for k in cfg.environment.keys()]
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
     n_params = actual_params.size()[0]
@@ -48,38 +47,33 @@ def run_RT3D(xdot, param_path):
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
     except:
         pass
-    save_path = './results/'
+    save_path = cfg.save_path
+    os.makedirs(save_path, exist_ok=True)
 
     # agent setup
-    pol_learning_rate = 0.00005
-    hidden_layer_size = [[64, 64], [128, 128]]
-    pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0],
-                       hidden_layer_size[1], n_controlled_inputs]
+    pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, cfg.hidden_layer_size[0],
+                       cfg.hidden_layer_size[1], n_controlled_inputs]
     val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs,
-                       hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = RT3D_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
-                       val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
-    agent.batch_size = int(N_control_intervals * skip)
-    agent.max_length = 11
-    agent.mem_size = 500000000
-    agent.std = 0.1
-    agent.noise_bounds = [-0.25, 0.25]
-    agent.action_bounds = [0, 1]
-    policy_delay = 2
+                       cfg.hidden_layer_size[0], cfg.hidden_layer_size[1], 1]
+    agent = instantiate(cfg.model, pol_layer_sizes=pol_layer_sizes, val_layer_sizes=val_layer_sizes, batch_size=int(N_control_intervals * skip))
+
     update_count = 0
-    max_std = 1  # for exploring
-    explore_rate = max_std
-    alpha = 1
+    explore_rate = cfg.explore_rate
     all_returns = []
     all_test_returns = []
 
     # env setup
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser
+    spec = importlib.util.spec_from_file_location('xdot', hydra.utils.to_absolute_path(cfg.environment.xdot_path))
+    xdot_mod = importlib.util.module_from_spec(spec)
+    sys.modules['xdot'] = xdot_mod
+    spec.loader.exec_module(xdot_mod)
+
+    args = y0, xdot_mod.xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser
     env = OED_env(*args)
     env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
 
     for episode in range(int(n_episodes // skip)):  # training loop
-        actual_params = np.random.uniform(low=lb, high=ub, size=(skip, 3))  # sample from uniform distribution
+        actual_params = np.random.uniform(low=lb, high=ub, size=(skip, len(cfg.environment.actual_params)))  # sample from uniform distribution
         env.param_guesses = DM(actual_params)
         states = [env.get_initial_RL_state_parallel() for i in range(skip)]
         e_returns = [0 for _ in range(skip)]
@@ -133,12 +127,12 @@ def run_RT3D(xdot, param_path):
             t = time.time()
             for _ in range(skip):
                 update_count += 1
-                policy = update_count % policy_delay == 0
+                policy = update_count % cfg.policy_delay == 0
 
                 agent.Q_update(policy=policy, fitted=False, recurrent=True)
             print('fitting time', time.time() - t)
 
-        explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * max_std
+        explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * cfg.max_std
 
         all_returns.extend(e_returns)
         print()
@@ -160,32 +154,5 @@ def run_RT3D(xdot, param_path):
     plt.show()
 
 
-parser = argparse.ArgumentParser(description='Run the RT3D algorithm for OED')
-
-parser.add_argument('xdot_path', type=str, help='the filepath with the function that defines the differential equations')
-parser.add_argument('param_path', type=str, help='the filepath for the learning parameters json file')
-
-
-
 if __name__ == '__main__':
-    args = parser.parse_args()
-
-    # extract args
-    xdot_path = args.xdot_path
-    param_path = args.param_path
-    print(xdot_path)
-
-    #import the xdot function
-    spec = importlib.util.spec_from_file_location('xdot', xdot_path)
-    xdot_mod = importlib.util.module_from_spec(spec)
-    sys.modules['xdot'] = xdot_mod
-    spec.loader.exec_module(xdot_mod)
-
-
-    run_RT3D(xdot_mod.xdot, param_path)
-
-
-
-
-
-
+    run_RT3D()
