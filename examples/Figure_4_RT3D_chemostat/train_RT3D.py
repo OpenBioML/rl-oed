@@ -12,7 +12,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
-
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 import time
 from RED.agents.continuous_agents import RT3D_agent
@@ -24,16 +26,13 @@ import multiprocessing
 import json
 
 
-
-if __name__ == '__main__':
+@hydra.main(config_path="../../RED/configs", config_name="example/RT3D_chemostat")
+def train_RT3D(cfg : DictConfig):
     #setup
+    cfg = cfg.example
     n_cores = multiprocessing.cpu_count()
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
+    _, n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
+        [cfg.environment[k] for k in cfg.environment.keys()]
     actual_params = DM(actual_params)
     normaliser = np.array(normaliser)
     n_params = actual_params.size()[0]
@@ -46,27 +45,18 @@ if __name__ == '__main__':
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
     except:
         pass
-    save_path = os.path.join('.', 'results')
+    save_path = cfg.save_path
+    os.makedirs(save_path, exist_ok=True)
 
     # agent setup
-    pol_learning_rate = 0.00005
-    hidden_layer_size = [[64, 64], [128, 128]]
-    pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], n_controlled_inputs]
-    val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = RT3D_agent(val_layer_sizes = val_layer_sizes, pol_layer_sizes = pol_layer_sizes,  policy_act = tf.nn.sigmoid, val_learning_rate = 0.0001, pol_learning_rate = pol_learning_rate)#, pol_learning_rate=0.0001)
-    agent.batch_size = int(N_control_intervals * skip)
-    agent.max_length = 11
-    agent.mem_size = 500000000
-    max_std = 1  # for exploring
-    explore_rate = max_std
-    alpha = 1
+    pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, cfg.hidden_layer_size[0], cfg.hidden_layer_size[1], n_controlled_inputs]
+    val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs, cfg.hidden_layer_size[0], cfg.hidden_layer_size[1], 1]
+    agent = instantiate(cfg.model, pol_layer_sizes=pol_layer_sizes, val_layer_sizes=val_layer_sizes, batch_size=int(N_control_intervals * skip))
+
+    update_count = 0
+    explore_rate = cfg.explore_rate
     all_returns = []
     all_test_returns = []
-    agent.std = 0.1
-    agent.noise_bounds = [-0.25, 0.25]
-    agent.action_bounds = [0, 1]
-    policy_delay = 2
-    update_count = 0
 
     # env setup
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
@@ -74,10 +64,9 @@ if __name__ == '__main__':
     env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
 
 
-
     for episode in range(int(n_episodes//skip)): #training loop
 
-        actual_params = np.random.uniform(low=[1,  0.00048776, 0.00006845928], high=[1,  0.00048776, 0.00006845928], size = (skip, 3))
+        actual_params = np.random.uniform(low=cfg.environment.actual_params, high=cfg.environment.actual_params, size = (skip, n_params))
         env.param_guesses = DM(actual_params)
         states = [env.get_initial_RL_state_parallel() for i in range(skip)]
         e_returns = [0 for _ in range(skip)]
@@ -133,11 +122,11 @@ if __name__ == '__main__':
             t = time.time()
             for _ in range(skip):
                 update_count += 1
-                policy = update_count % policy_delay == 0
+                policy = update_count % cfg.policy_delay == 0
                 agent.Q_update(policy=policy, fitted=False, recurrent=True)
 
 
-        explore_rate = agent.get_rate( episode, 0, 1, n_episodes / (11 * skip)) * max_std
+        explore_rate = agent.get_rate( episode, 0, 1, n_episodes / (11 * skip)) * cfg.max_std
 
         all_returns.extend(e_returns)
 
@@ -162,3 +151,6 @@ if __name__ == '__main__':
     plt.plot(all_returns)
     plt.show()
 
+
+if __name__ == '__main__':
+    train_RT3D()
