@@ -18,7 +18,7 @@ We use [Hydra](https://hydra.cc) for configuration, which allows for **hierarchi
 ```
 
 ## How to use
-The file `configs/train.yaml` contains the main training configuration that can be altered to fit any training alterations desired.
+The file `configs/train.yaml` contains the main training configuration that can be altered to fit any experiments. It is an entry point that composes smaller configuration pieces such as the environment (chemostat, gene transcription, ...), the model/agent (RT3D, DRPG, ...), and higher-level settings such as the path where to store the results. As can be seen below, one can also easily override selected parameters in the above-mentioned config sources (see the section `model:`).
 
 <details>
 <summary><b>Training config (configs/train.yaml)</b></summary>
