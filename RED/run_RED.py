@@ -29,7 +29,7 @@ import multiprocessing
 
 
 
-@hydra.main(config_path="configs", config_name="train")
+@hydra.main(version_base=None, config_path="configs", config_name="train")
 def run_RT3D(cfg : DictConfig):
     # setup
     n_cores = multiprocessing.cpu_count()

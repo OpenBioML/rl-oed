@@ -1,6 +1,6 @@
 defaults:
-  - environment: chemostat
-  - model: RT3D_agent
+  - /environment: chemostat
+  - /model: RT3D_agent
   - _self_
 
 model:

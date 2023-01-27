@@ -26,7 +26,7 @@ import multiprocessing
 import json
 
 
-@hydra.main(config_path="../../RED/configs", config_name="example/RT3D_chemostat")
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/RT3D_chemostat")
 def train_RT3D(cfg : DictConfig):
     #setup
     cfg = cfg.example
