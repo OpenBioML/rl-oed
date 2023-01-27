@@ -42,7 +42,6 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 
-# if __name__ == '__main__':
 @hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/RT3D_gene_transcription")
 def MPC_param_inf(cfg: DictConfig):
     '''

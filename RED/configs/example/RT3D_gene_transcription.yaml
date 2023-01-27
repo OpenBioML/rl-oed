@@ -12,11 +12,13 @@ model:
   mem_size: 500_000_000
   std: 0.1
 
+environment:
+  prior: false
+
 hidden_layer_size: [[64, 64], [128, 128]]
 policy_delay: 2
 max_std: 0 # for exploring
 explore_rate: "${.max_std}"
-# prior: False # True, originally could be overridden by CLI
 recurrent: True
 test_episode: False
 load_agent_network: False
