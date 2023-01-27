@@ -1,0 +1,4 @@
+_target_: RED.agents.continuous_agents.DRPG_agent
+layer_sizes: ???
+learning_rate: 0.001
+critic: True
