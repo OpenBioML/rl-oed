@@ -14,7 +14,7 @@ We use [Hydra](https://hydra.cc) for configuration, which allows for **hierarchi
 |   └── model                               # configuration files for different models and agents
 |       |── RT3D_agent.yaml
 |       └── ...
-└── train.yaml                                # main training configuration
+└── train.yaml                              # main training configuration
 ```
 
 ## How to use
