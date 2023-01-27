@@ -1,0 +1,25 @@
+defaults:
+  - /environment: chemostat
+  - /model: KerasFittedQAgent
+  - _self_
+
+# environment:
+#   n_episodes: 20_000
+#   actual_params: [20, 5e5, 1.09e9, 2.57e-4, 4.]
+#   input_bounds: [[-3., 3.]]
+#   n_system_variables: 2
+#   num_inputs: 12
+#   y0: [0.000001, 0.000001]
+#   dt: 0.01
+#   normaliser: [1e3, 1e4, 1e2, 1e6, 1e10, 1e-3, 1e1, 1e9, 1e9, 1e9, 1e9, 1, 1e9, 1e9, 1e9, 1, 1e9, 1e9, 1, 1e9, 1, 1e7,10]
+#   N_control_intervals: 6
+#   control_interval_time: 100
+#   n_observed_variables: 2
+#   n_controlled_inputs: 1
+
+hidden_layer_sizes: [150, 150, 150]
+use_old_state: false # true in original
+old_state_normaliser: [1e3, 1e1, 1e-3, 1e-4, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e2]
+init_explore_rate: 1
+init_alpha: 1
+save_path: results/

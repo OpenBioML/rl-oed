@@ -1,19 +1,16 @@
 import sys
 import os
 
-
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
-
-
-
 
 from casadi import *
 import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
-
+import hydra
+from omegaconf import DictConfig
 
 from RED.environments.OED_env import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
@@ -26,39 +23,34 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 
 
-
-if __name__ == '__main__':
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_2_FQ_chemostat")
+def OSAO_param_inf(cfg : DictConfig):
+    cfg = cfg.example
+    os.makedirs(cfg.save_path, exist_ok=True)
 
     #setup
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-    actual_params = DM(actual_params)
-    normaliser = np.array(normaliser)
-    save_path = os.path.join('.', 'results')
-    os.makedirs(save_path, exist_ok=True)
+    actual_params = DM(cfg.environment.actual_params)
+    normaliser = np.array(cfg.environment.normaliser)
     n_params = actual_params.size()[0]
-    n_system_variables = len(y0)
+    n_system_variables = len(cfg.environment.y0)
     n_FIM_elements = sum(range(n_params + 1))
     n_tot = n_system_variables + n_params * n_system_variables + n_FIM_elements
-    param_guesses = DM((np.array(ub) + np.array(lb))/2)
-    env = OED_env(y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser)
-    explore_rate = 1
-    input_bounds = np.array(input_bounds)
+    param_guesses = DM((np.array(cfg.environment.ub) + np.array(cfg.environment.lb))/2)
+    env = OED_env(cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
+        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+        cfg.environment.dt, cfg.environment.control_interval_time, normaliser)
+    input_bounds = np.array(cfg.environment.input_bounds)
     u0 = (10.0**input_bounds[:,1] + 10.0**input_bounds[:,0])/2
     env.u0 = DM(u0)
     e_rewards = []
 
 
     #run optimisation
-    for e in range(0, N_control_intervals):
+    for e in range(0, cfg.environment.N_control_intervals):
         next_state, reward, done, _ = env.step()
 
 
-        if e == N_control_intervals - 1:
+        if e == cfg.environment.N_control_intervals - 1:
             next_state = [None]*24
             done = True
 
@@ -66,36 +58,40 @@ if __name__ == '__main__':
         state = next_state
 
     # save results and plot
-    np.save(os.path.join(save_path, 'trajectories.npy'), np.array(env.true_trajectory))
+    np.save(os.path.join(cfg.save_path, 'trajectories.npy'), np.array(env.true_trajectory))
 
-    np.save(os.path.join(save_path, 'true_trajectory.npy'), env.true_trajectory)
-    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
+    np.save(os.path.join(cfg.save_path, 'true_trajectory.npy'), env.true_trajectory)
+    np.save(os.path.join(cfg.save_path, 'us.npy'), np.array(env.us))
 
-    t = np.arange(N_control_intervals) * int(control_interval_time)
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
 
     plt.plot(env.true_trajectory[0, :].elements(), label='true')
     plt.legend()
     plt.ylabel('bacteria')
     plt.xlabel('time (mins)')
-    plt.savefig(os.path.join(save_path, 'bacteria_trajectories.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'bacteria_trajectories.pdf'))
 
     plt.figure()
     plt.plot(env.true_trajectory[1, :].elements(), label='true')
     plt.legend()
     plt.ylabel('C')
     plt.xlabel('time (mins)')
-    plt.savefig(os.path.join(save_path, 'c_trajectories.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'c_trajectories.pdf'))
 
     plt.figure()
     plt.plot(env.true_trajectory[2, :].elements(), label='true')
     plt.legend()
     plt.ylabel('C0')
     plt.xlabel('time (mins)')
-    plt.savefig(os.path.join(save_path, 'c0_trajectories.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'c0_trajectories.pdf'))
 
     plt.figure()
     plt.ylim(bottom=0)
     plt.ylabel('u')
     plt.xlabel('Timestep')
-    plt.savefig(os.path.join(save_path, 'log_us.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'log_us.pdf'))
     plt.show()
+
+
+if __name__ == '__main__':
+    OSAO_param_inf()

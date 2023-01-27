@@ -10,6 +10,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
+import hydra
+from omegaconf import DictConfig
+
 from RED.environments.OED_env import OED_env
 from RED.environments.chemostat.xdot_chemostat import xdot
 import json
@@ -34,24 +37,22 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 
-if __name__ == '__main__':
-
-
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_2_FQ_chemostat")
+def MPC_param_inf(cfg : DictConfig):
     # setup
-    param_dir =  os.path.join(os.path.join(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'RED', 'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-    actual_params = DM(actual_params)
-    normaliser = np.array(normaliser)
-    save_path = os.path.join('.', 'results')
-    os.makedirs(save_path, exist_ok=True)
+    cfg = cfg.example
 
-    param_guesses = DM((np.array(ub) + np.array(lb))/2)
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
+    actual_params = DM(cfg.environment.actual_params)
+    normaliser = np.array(cfg.environment.normaliser)
+    os.makedirs(cfg.save_path, exist_ok=True)
+
+    param_guesses = DM((np.array(cfg.environment.ub) + np.array(cfg.environment.lb))/2)
+    args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
+        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+        cfg.environment.dt, cfg.environment.control_interval_time, normaliser
 
     env = OED_env(*args)
-    input_bounds = np.array(input_bounds)
+    input_bounds = np.array(cfg.environment.input_bounds)
     u0 = (input_bounds[:,1] + input_bounds[:,0])/2
     env.u0 = DM(u0)
 
@@ -61,9 +62,9 @@ if __name__ == '__main__':
         creates and return the solver which will optimise a full exepiments inputs wrt the FI
         :return: solver
         '''
-        us = SX.sym('us', N_control_intervals * n_controlled_inputs)
-        trajectory_solver = env.get_sampled_trajectory_solver(N_control_intervals, control_interval_time, dt)
-        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(us , (n_controlled_inputs, N_control_intervals)))
+        us = SX.sym('us', cfg.environment.N_control_intervals * cfg.environment.n_controlled_inputs)
+        trajectory_solver = env.get_sampled_trajectory_solver(cfg.environment.N_control_intervals, cfg.environment.control_interval_time, cfg.environment.dt)
+        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(us , (cfg.environment.n_controlled_inputs, cfg.environment.N_control_intervals)))
 
         FIM = env.get_FIM(est_trajectory)
 
@@ -78,13 +79,19 @@ if __name__ == '__main__':
     # run optimisation
     u0 = (input_bounds[:,1] + input_bounds[:,0])/2
     u_solver = get_full_u_solver()
-    sol = u_solver(x0=u0, lbx = [input_bounds[0][0]]*n_controlled_inputs*N_control_intervals, ubx = [input_bounds[0][1]]*n_controlled_inputs*N_control_intervals)
+    sol = u_solver(
+        x0=u0,
+        lbx = [input_bounds[0][0]] * cfg.environment.n_controlled_inputs * cfg.environment.N_control_intervals,
+        ubx = [input_bounds[0][1]] * cfg.environment.n_controlled_inputs * cfg.environment.N_control_intervals
+    )
     us = sol['x']
 
     # save results and plot
-    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
+    np.save(os.path.join(cfg.save_path, 'us.npy'), np.array(env.us))
 
 
-    t = np.arange(N_control_intervals) * int(control_interval_time)
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
 
 
+if __name__ == '__main__':
+    MPC_param_inf()
