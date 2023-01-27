@@ -3,7 +3,7 @@ n_episodes: 20000
 skip: 10
 y0: [0.000001, 0.000001]
 actual_params: [20, 5e5, 1.09e9, 2.57e-4, 4.0]
-input_bounds: [[-3,3]]
+input_bounds: [[-3, 3]]
 n_controlled_inputs: 1
 num_inputs: 12
 dt: 0.01
