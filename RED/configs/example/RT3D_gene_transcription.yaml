@@ -1,0 +1,24 @@
+defaults:
+  - /environment: gene_transcription
+  - /model: RT3D_agent
+  - _self_
+
+model:
+  val_learning_rate: 0.0001
+  pol_learning_rate: 0.00005
+  policy_act: sigmoid
+  noise_bounds: [-0.25, 0.25]
+  action_bounds: [0, 1]
+  mem_size: 500_000_000
+  std: 0.1
+
+hidden_layer_size: [[64, 64], [128, 128]]
+policy_delay: 2
+max_std: 0 # for exploring
+explore_rate: "${.max_std}"
+# prior: False # True, originally could be overridden by CLI
+recurrent: True
+test_episode: False
+load_agent_network: False
+agent_network_path: "/Users/neythen/Desktop/Projects/RL_OED/results/rt3d_gene_transcription_230822/repeat6"
+save_path: results/

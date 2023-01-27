@@ -227,7 +227,7 @@ class RT3D_agent():
     class that implements the RT3D agent
     '''
     def __init__(self, val_layer_sizes, pol_layer_sizes, gamma = 1, val_learning_rate = 0.001, pol_learning_rate = 0.001, policy_act = tf.keras.activations.linear,
-        scale = 1, polyak = 0.995, batch_size = 256, std = 0.1, noise_bounds=[-0.25, 0.25], action_bounds=[0, 1], mem_size = 500000000, max_length = 11):
+        scale = 1, polyak = 0.995, batch_size = 256, std = 0.1, noise_bounds=[-0.25, 0.25], action_bounds=[0, 1], mem_size = 500_000_000, max_length = 11):
         '''
         initialises the agent
         :param val_layer_sizes: layer sizes fo rthe Q networks

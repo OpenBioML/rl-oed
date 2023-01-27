@@ -9,6 +9,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 import time
 import tensorflow as tf
@@ -39,30 +42,29 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 
-if __name__ == '__main__':
-
+# if __name__ == '__main__':
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/RT3D_gene_transcription")
+def MPC_param_inf(cfg: DictConfig):
     '''
     {'f': DM(-73.9751), 'g': DM([]), 'lam_g': DM([]), 'lam_p': DM([]), 'lam_x': DM([0.0544032, -0.000621907, -2.55992e-06, -0.000481557, -0.000545576, -0.000732909]), 'x': DM([2.99997, -2.93105, 1.48927, -2.90577, -2.91904, -2.94369])}
 
     '''
     # setup
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'gene_transcription'))
-    params = json.load(open(os.path.join(param_dir, 'params_gene_transcription.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-    actual_params = DM(actual_params)
-    normaliser = np.array(normaliser)
-    save_path = os.path.join('.', 'results')
-    os.makedirs(save_path, exist_ok=True)
+    cfg = cfg.example
+
+    actual_params = DM(cfg.environment.actual_params)
+    normaliser = np.array(cfg.environment.normaliser)
+    # save_path = os.path.join('.', 'results')
+    os.makedirs(cfg.save_path, exist_ok=True)
 
     param_guesses = DM(actual_params) # for non prior
     #param_guesses = DM((np.array(ub) + np.array(lb))/2) # for prior
 
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
+    args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
+        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+        cfg.environment.dt, cfg.environment.control_interval_time, normaliser
     env = OED_env(*args)
-    input_bounds = np.array(input_bounds)
+    input_bounds = np.array(cfg.environment.input_bounds)
     u0 = (input_bounds[:,1] + input_bounds[:,0])/2
     env.u0 = DM(u0)
 
@@ -72,9 +74,9 @@ if __name__ == '__main__':
         creates and return the solver which will optimise a full exepiments inputs wrt the FI
         :return: solver
         '''
-        us = SX.sym('us', N_control_intervals * n_controlled_inputs)
-        trajectory_solver = env.get_sampled_trajectory_solver(N_control_intervals, control_interval_time, dt)
-        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(10.**us , (n_controlled_inputs, N_control_intervals)))
+        us = SX.sym('us', cfg.environment.N_control_intervals * cfg.environment.n_controlled_inputs)
+        trajectory_solver = env.get_sampled_trajectory_solver(cfg.environment.N_control_intervals, cfg.environment.control_interval_time, cfg.environment.dt)
+        est_trajectory = trajectory_solver(env.initial_Y, param_guesses, reshape(10.**us , (cfg.environment.n_controlled_inputs, cfg.environment.N_control_intervals)))
 
         FIM = env.get_FIM(est_trajectory)
 
@@ -89,11 +91,18 @@ if __name__ == '__main__':
     # run optimisation
     u0 = (input_bounds[:,1] + input_bounds[:,0])/2
     u_solver = get_full_u_solver()
-    sol = u_solver(x0=u0, lbx = [input_bounds[0][0]]*n_controlled_inputs*N_control_intervals, ubx = [input_bounds[0][1]]*n_controlled_inputs*N_control_intervals)
+    sol = u_solver(
+        x0=u0,
+        lbx = [input_bounds[0][0]]*cfg.environment.n_controlled_inputs*cfg.environment.N_control_intervals,
+        ubx = [input_bounds[0][1]]*cfg.environment.n_controlled_inputs*cfg.environment.N_control_intervals
+    )
     us = sol['x']
     print(sol)
     print(us)
 
     # save results
-    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
+    np.save(os.path.join(cfg.save_path, 'us.npy'), np.array(env.us))
 
+
+if __name__ == '__main__':
+    MPC_param_inf()
