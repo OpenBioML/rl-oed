@@ -9,6 +9,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 import time
 import tensorflow as tf
@@ -25,11 +28,10 @@ def enablePrint():
 def action_scaling(u):
     return 10**u
 
-if __name__ == '__main__':
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_S2_FQ_gene_transcription")
+def train_FQ(cfg : DictConfig):
+    cfg = cfg.example
 
-    n_episodes = 20000
-
-    save_path = os.path.join('.', 'results')
     physical_devices = tf.config.list_physical_devices('GPU')
     try:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -37,28 +39,23 @@ if __name__ == '__main__':
         pass
 
     #setup
-    agent = KerasFittedQAgent(layer_sizes = [23, 150, 150, 150, 12])
-    all_returns = []
-    actual_params = DM([20, 5e5, 1.09e9, 2.57e-4, 4.])
-    input_bounds = [-3, 3] # on the log scale
+    agent = instantiate(cfg.model)
+    actual_params = DM(cfg.environment.actual_params)
     n_params = actual_params.size()[0]
-    n_system_variables = 2
     n_FIM_elements = sum(range(n_params + 1))
-    n_tot = n_system_variables + n_params * n_system_variables + n_FIM_elements
-    num_inputs = 12  # number of discrete inputs available to RL
-    dt = 1 / 100
+    # ??? vvv
     param_guesses = DM([22, 6e5, 1.2e9, 3e-4, 3.5])
     param_guesses = actual_params
-    y0 = [0.000001, 0.000001]
-    normaliser = np.array([1e3, 1e4, 1e2, 1e6, 1e10, 1e-3, 1e1, 1e9, 1e9, 1e9, 1e9, 1, 1e9, 1e9, 1e9, 1, 1e9, 1e9, 1, 1e9, 1, 1e7,10])
-    N_control_intervals = 6
-    control_interval_time = 100
-    n_observed_variables = 2
-    n_controlled_inputs = 1
-    env = OED_env(y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser)
-    explore_rate = 1
+    # ??? ^^^
+    normaliser = np.array(cfg.environment.normaliser)
+    env = OED_env(cfg.environment.y0, xdot, param_guesses, actual_params, \
+        cfg.environment.n_observed_variables, cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, \
+        cfg.environment.input_bounds, cfg.environment.dt, cfg.environment.control_interval_time, normaliser)
+    
+    explore_rate = cfg.init_explore_rate
+    all_returns = []
 
-    for episode in range(n_episodes): #training loop
+    for episode in range(cfg.environment.n_episodes): #training loop
 
         env.reset()
         state = env.get_initial_RL_state(use_old_state=True)
@@ -67,11 +64,11 @@ if __name__ == '__main__':
         e_rewards = []
         trajectory = []
 
-        for e in range(0, N_control_intervals): # run episode
+        for e in range(0, cfg.environment.N_control_intervals): # run episode
             t = time.time()
             action = agent.get_action(state.reshape(-1, 23), explore_rate)
             next_state, reward, done, _ = env.step(action, use_old_state = True, scaling = action_scaling)
-            if e == N_control_intervals - 1:
+            if e == cfg.environment.N_control_intervals - 1:
                 next_state = [None]*23
                 done = True
             transition = (state, action, reward, next_state, done)
@@ -84,8 +81,8 @@ if __name__ == '__main__':
         agent.memory.append(trajectory)
         #train the agent
         skip = 200
-        if episode % skip == 0 or episode == n_episodes - 2: #train agent
-            explore_rate = agent.get_rate(episode, 0, 1, n_episodes / 10)
+        if episode % skip == 0 or episode == cfg.environment.n_episodes - 2: #train agent
+            explore_rate = agent.get_rate(episode, 0, 1, cfg.environment.n_episodes / 10)
             if explore_rate == 1:
                 n_iters = 0
             elif len(agent.memory[0]) * len(agent.memory) < 40000:
@@ -98,7 +95,7 @@ if __name__ == '__main__':
 
         all_returns.append(e_return)
 
-        if episode %skip == 0 or episode == n_episodes -1:
+        if episode %skip == 0 or episode == cfg.environment.n_episodes -1:
             print()
             print('EPISODE: ', episode)
             print('explore rate: ', explore_rate)
@@ -106,32 +103,36 @@ if __name__ == '__main__':
             print('av return: ', np.mean(all_returns[-skip:]))
 
     # save and plot
-    agent.save_network(save_path)
-    np.save(os.path.join(save_path, 'trajectories.npy'), np.array(env.true_trajectory))
-    np.save(os.path.join(save_path, 'true_trajectory.npy'), env.true_trajectory)
-    np.save(os.path.join(save_path, 'us.npy'), np.array(env.us))
-    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
-    np.save(os.path.join(save_path,'actions.npy'), np.array(agent.actions))
-    np.save(os.path.join(save_path,'values.npy'), np.array(agent.values))
-    t = np.arange(N_control_intervals) * int(control_interval_time)
+    agent.save_network(cfg.save_path)
+    np.save(os.path.join(cfg.save_path, 'trajectories.npy'), np.array(env.true_trajectory))
+    np.save(os.path.join(cfg.save_path, 'true_trajectory.npy'), env.true_trajectory)
+    np.save(os.path.join(cfg.save_path, 'us.npy'), np.array(env.us))
+    np.save(os.path.join(cfg.save_path, 'all_returns.npy'), np.array(all_returns))
+    np.save(os.path.join(cfg.save_path,'actions.npy'), np.array(agent.actions))
+    np.save(os.path.join(cfg.save_path,'values.npy'), np.array(agent.values))
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
     plt.plot(env.true_trajectory[0, :].elements(), label = 'true')
     plt.legend()
     plt.ylabel('rna')
     plt.xlabel('time (mins)')
-    plt.savefig(os.path.join(save_path,'rna_trajectories.pdf'))
+    plt.savefig(os.path.join(cfg.save_path,'rna_trajectories.pdf'))
     plt.figure()
     plt.plot( env.true_trajectory[1, :].elements(), label = 'true')
     plt.legend()
     plt.ylabel( 'protein')
     plt.xlabel('time (mins)')
-    plt.savefig(os.path.join(save_path, 'prot_trajectories.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'prot_trajectories.pdf'))
     plt.ylim(bottom=0)
     plt.ylabel('u')
     plt.xlabel('Timestep')
-    plt.savefig(os.path.join(save_path, 'log_us.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'log_us.pdf'))
     plt.figure()
     plt.plot(all_returns)
     plt.ylabel('Return')
     plt.xlabel('Episode')
-    plt.savefig(os.path.join(save_path, 'return.pdf'))
+    plt.savefig(os.path.join(cfg.save_path, 'return.pdf'))
     plt.show()
+
+
+if __name__ == '__main__':
+    train_FQ()

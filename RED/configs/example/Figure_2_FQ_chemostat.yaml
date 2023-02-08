@@ -1,0 +1,11 @@
+defaults:
+  - /environment: chemostat
+  - /model: KerasFittedQAgent
+  - _self_
+
+hidden_layer_sizes: [150, 150, 150]
+use_old_state: false # true as default in original rl-oed
+old_state_normaliser: [1e3, 1e1, 1e-3, 1e-4, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e2]
+init_explore_rate: 1
+init_alpha: 1
+save_path: results/

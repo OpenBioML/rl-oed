@@ -1,0 +1,2 @@
+_target_: RED.agents.fitted_Q_agents.KerasFittedQAgent
+layer_sizes: [2, 20, 20, 4]

@@ -1,0 +1,15 @@
+_target_: RED.agents.continuous_agents.RT3D_agent
+val_layer_sizes: ???
+pol_layer_sizes: ???
+gamma: 1
+val_learning_rate: 0.001
+pol_learning_rate: 0.001
+policy_act: linear
+scale: 1
+polyak: 0.995
+std: 0.1
+noise_bounds: [-0.25, 0.25]
+action_bounds: [0, 1]
+batch_size: 256
+max_length: 11
+mem_size: 500000000
