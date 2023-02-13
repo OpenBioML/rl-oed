@@ -10,10 +10,10 @@ class DRPG_agent(nn.Module):
         super(DRPG_agent, self).__init__()
         self.memory = []
         self.layer_sizes = layer_sizes
-        self.gamma = 1.
+        self.gamma = 1.0
 
         self.critic = critic
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+       
 
         if critic:
             self.critic_network = self.initialise_network(layer_sizes, critic_nw=True)
@@ -92,7 +92,7 @@ def policy_update(self):
     if self.critic:
         expected_returns = self.critic_network(inputs)
 
-        returns -= expected_returns.reshape(-1)
+        returns = expected_returns.reshape(-1)
 
         self.critic_network.fit(inputs, returns)
 
@@ -149,12 +149,6 @@ def get_inputs_targets(self):
 def save_network(self, save_path):
     torch.save(self.network.state_dict(), save_path + '/saved_network.pt')
 
-def load_network(self, load_path):
-    try:
-        self.network.load_state_dict(torch.load(load_path + '/saved_network.pt'))
-    except:
-        print('EXCEPTION IN LOAD NETWORK')
-        raise Exception("Loading network failed.")
 
 
 
