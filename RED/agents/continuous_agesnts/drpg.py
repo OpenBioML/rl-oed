@@ -7,7 +7,8 @@ from torch.nn.utils.rnn import pad_sequences
 import numpy as np
 import copy, os
 
-from .utils import NeuralNetwork
+from utils.network import NeuralNetwork
+from utils.data import DRPGDataset
 
 class DRPG_agent():
     def __init__(self, layer_sizes, learning_rate = 0.001, critic=True):
