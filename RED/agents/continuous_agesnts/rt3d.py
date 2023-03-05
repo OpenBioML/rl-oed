@@ -8,7 +8,7 @@ import numpy as np
 import math, gc, os, copy
 
 from utils.network import NeuralNetwork
-from utils.data import StatesActionsDataset
+from utils.data import RT3DDataset
 
 
 class RT3D_agent():
