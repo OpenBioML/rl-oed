@@ -91,9 +91,9 @@ class RT3D_agent():
         :param scale: scale of the output (so network output can be between 0 and 1)
         :return:
         '''
-        mlp = NeuralNetwork(input_size, layer_sizes, scale)
+        network = NeuralNetwork(input_size, layer_sizes, scale)
 
-        return mlp
+        return network
 
     def get_actions_dist(self, inputs, explore_rate, test_episode = False, recurrent = True):
         '''
