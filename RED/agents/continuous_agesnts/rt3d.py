@@ -7,8 +7,8 @@ from torch.nn.utils.rnn import pad_sequences
 import numpy as np
 import math, gc, os, copy
 
-from util.network import NeuralNetwork
-from util.data import StatesActionsDataset
+from utils.network import NeuralNetwork
+from utils.data import StatesActionsDataset
 
 
 class RT3D_agent():
