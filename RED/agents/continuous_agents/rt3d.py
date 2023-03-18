@@ -658,25 +658,6 @@ class RT3D_agent():
             self.policy_network_opt.zero_grad()
             self.Q1_network_opt.zero_grad()
 
-            # if fitted:
-            #     if epoch == 0:
-            #         best_weights = self.policy_network.get_weights()
-            #         best = np.mean(batch_losses)
-            #         wait = 0
-            #     elif np.mean(batch_losses) < best:
-
-            #         best_weights = self.policy_network.get_weights()
-            #         wait = 0
-            #         best = np.mean(batch_losses)
-            #     else:
-            #         wait += 1
-
-            #     if wait >= patience:
-            #         self.policy_network.set_weights(best_weights)
-            #         break
-
-        #print('Policy epochs: ', len(epoch_losses), epoch_losses[0], epoch_losses[-1])
-
         return epoch_losses
 
     def validate_on_train(model, dataloader, loss):
@@ -705,19 +686,13 @@ class RT3D_agent():
         :param low_mem: whether to use low memory mode
         '''
 
-        from time import time
-        low_mem = False
         if low_mem:
-            start = time()
             inputs, actions, targets = self.get_inputs_targets_low_mem(
                 recurrent=recurrent, monte_carlo=monte_carlo)
-            print('get_inputs_targets_low_mem: ', time() - start)
         else:
-            start = time()
             inputs, actions, targets = self.get_inputs_targets(
                 recurrent=recurrent, monte_carlo=monte_carlo)
-            print('get_inputs_targets: ', time() - start)
-        
+
         if recurrent:
             states, sequences = inputs
         else:
