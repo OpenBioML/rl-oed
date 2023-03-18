@@ -3,7 +3,6 @@ import ast
 import torch
 from torch import nn, optim
 
-
 class LambdaLayer(nn.Module):
     def __init__(self, lambda_expression):
         super(LambdaLayer, self).__init__()

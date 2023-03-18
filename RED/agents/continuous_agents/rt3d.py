@@ -186,7 +186,7 @@ class RT3D_agent():
             actions[:-1] += np.random.normal(0, explore_rate, size=actions[:-1].shape)
         else:
             actions += np.random.normal(0, explore_rate, size=actions.shape)
-        
+
         actions = np.clip(actions, self.action_bounds[0], self.action_bounds[1])
 
         return actions
@@ -318,7 +318,7 @@ class RT3D_agent():
         else:
             state_actions = inputs[0]
             head_inps = torch.tensor(state_actions, dtype=torch.float32, device=self.device)
-        
+
         q_net_out = q_net[1](head_inps)
 
         return q_net_out
@@ -394,6 +394,7 @@ class RT3D_agent():
                 dones = dones[-batch_size:]
                 all_returns = all_returns[-batch_size:]
             '''
+
             targets = all_returns
             pass
         else:
@@ -463,7 +464,6 @@ class RT3D_agent():
 
         # TODO: enable all the options here
         self.memory = self.memory[-self.mem_size:]
-
         sequences = []
         next_sequences = []
         states = []
@@ -600,7 +600,7 @@ class RT3D_agent():
                 optimizer.step()
 
         return q_net
-    
+
     def train_policy(self, inputs, epochs, recurrent=True):
         '''
         Train the policy network on the given inputs.
@@ -609,12 +609,12 @@ class RT3D_agent():
         :param recurrent: whether to use the recurrent networks
         :return: the trained policy network
         '''
-        
+
         if recurrent:
             states, sequences = inputs
         else:
             states = inputs[0]
-        
+
         batch_idxs = math.ceil(states.shape[0] / self.batch_size)
         epoch_losses = []
         for epoch in range(epochs):
@@ -739,7 +739,7 @@ class RT3D_agent():
         Saves networks to directory specified by save_path
         :param save_path: directory to save networks to
         '''
-        
+
         torch.save(self.policy_network, os.path.join(save_path, "policy_network.pth"))
         torch.save(self.Q1_network, os.path.join(save_path, "Q1_network.pth"))
         torch.save(self.Q2_network, os.path.join(save_path, "Q2_network.pth"))
@@ -754,7 +754,7 @@ class RT3D_agent():
         :param load_path: directory to load networks from
         :param load_target_networks: whether to load target networks
         '''
-        
+
         self.policy_network = torch.load(os.path.join(load_path, "policy_network.pth"))
         self.policy_network_opt =  Adam(self.policy_network.parameters(), lr=self.pol_learning_rate)
         
@@ -763,7 +763,7 @@ class RT3D_agent():
         
         self.Q2_network = torch.load(os.path.join(load_path, "Q2_network.pth"))
         self.Q2_etwork_opt = Adam(self.Q2_network.parameters(), lr=self.val_learning_rate)
-        
+
         if load_target_networks:
             self.policy_target = torch.load(os.path.join(load_path, "policy_target.pth"))
             self.Q1_target = torch.load(os.path.join(load_path, "Q1_target.pth"))
