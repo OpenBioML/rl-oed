@@ -1,0 +1,62 @@
+defaults:
+  - /environment: chemostat
+  - /model: RT3D_agent
+  - _self_
+
+policy_delay: 2
+initial_explore_rate: 1
+max_std: 1
+save_path: results/
+
+model:
+  batch_size: ${eval:'${example.environment.N_control_intervals} * ${example.environment.skip}'}
+  val_learning_rate: 0.0001
+  pol_learning_rate: 0.00005
+  action_bounds: [0, 1]
+  noise_bounds: [-0.25, 0.25]
+  pol_module_specs:
+    - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs}'}
+      layers:
+        - layer_type: GRU
+          hidden_size: 64
+          num_layers: 1
+        - layer_type: GRU
+          hidden_size: 64
+          num_layers: 1
+    - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${..[0].layers[1].hidden_size}'}
+      layers:
+        - layer_type: Linear
+          output_size: 128
+          activation:
+            _target_: torch.nn.ReLU
+        - layer_type: Linear
+          output_size: 128
+          activation:
+            _target_: torch.nn.ReLU
+        - layer_type: Linear
+          output_size: ${example.environment.n_controlled_inputs}
+          activation:
+            _target_: torch.nn.Sigmoid
+  val_module_specs:
+    - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs}'}
+      layers:
+        - layer_type: GRU
+          hidden_size: 64
+          num_layers: 1
+        - layer_type: GRU
+          hidden_size: 64
+          num_layers: 1
+    - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs} + ${..[0].layers[1].hidden_size}'}
+      layers:
+        - layer_type: Linear
+          output_size: 128
+          activation:
+            _target_: torch.nn.ReLU
+        - layer_type: Linear
+          output_size: 128
+          activation:
+            _target_: torch.nn.ReLU
+        - layer_type: Linear
+          output_size: 1
+          activation:
+            _target_: torch.nn.Identity

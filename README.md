@@ -5,7 +5,7 @@
 
 RED does not need to be installed to run the examples 
 
-To use the package within python scropts, `RED` must be in PYTHONPATH.
+To use the package within python scripts, `RED` must be in PYTHONPATH.
 
 To add to PYTHONPATH on a bash system add the following to the ~/.bashrc file
 
@@ -14,7 +14,7 @@ export PYTHONPATH="${PYTHONPATH}:<path to RED root dir>"
 ```
 
 ### Dependencies
-Standard python dependencies are required: `numpy`, `scipy`, `matplotlib`.  `TensorFlow` is required). Instructions for installing 'TensorFlow' can be found here:
+Standard python dependencies are required: `numpy`, `scipy`, `matplotlib`. `TensorFlow` and `hydra-core` are required). Instructions for installing 'TensorFlow' can be found here:
  https://www.tensorflow.org/install/
 
 ### User Instructions

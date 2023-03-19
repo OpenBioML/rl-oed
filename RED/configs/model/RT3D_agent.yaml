@@ -1,0 +1,65 @@
+# note: using ${eval:'...'} requires OmegaConf.register_new_resolver("eval", eval) in code
+_target_: RED.agents.continuous_agents.rt3d.RT3D_agent
+val_learning_rate: 0.001
+pol_learning_rate: 0.001
+batch_size: 256
+action_bounds: [0, 1]
+noise_bounds: [-0.25, 0.25]
+noise_std: 0.1
+gamma: 1
+polyak: 0.995
+max_length: 11
+mem_size: 500000000
+pol_module_specs:
+  # - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs}'}
+  - input_size: 4
+    layers:
+      - layer_type: GRU
+        hidden_size: 64
+        num_layers: 1
+      - layer_type: GRU
+        hidden_size: 64
+        num_layers: 1
+  # - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${..[0].layers[1].hidden_size}'}
+  - input_size: ${..[0].layers[1].hidden_size}
+    layers:
+      - layer_type: Linear
+        output_size: 128
+        activation:
+          _target_: torch.nn.ReLU
+      - layer_type: Linear
+        output_size: 128
+        activation:
+          _target_: torch.nn.ReLU
+      - layer_type: Linear
+        # output_size: ${example.environment.n_controlled_inputs}
+        output_size: 2 # action space
+        activation:
+          _target_: torch.nn.Identity
+      # - layer_type: Lambda
+      #   lambda_expression: "lambda x: x * 1" # scaling policy outputs
+val_module_specs:
+  # - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs}'}
+  - input_size: 4
+    layers:
+      - layer_type: GRU
+        hidden_size: 64
+        num_layers: 1
+      - layer_type: GRU
+        hidden_size: 64
+        num_layers: 1
+  # - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs} + ${..[0].layers[1].hidden_size}'}
+  - input_size: 66 # 64 + 2 (hidden size + action space)
+    layers:
+      - layer_type: Linear
+        output_size: 128
+        activation:
+          _target_: torch.nn.ReLU
+      - layer_type: Linear
+        output_size: 128
+        activation:
+          _target_: torch.nn.ReLU
+      - layer_type: Linear
+        output_size: 1 # predicted state-action value
+        activation:
+          _target_: torch.nn.Identity

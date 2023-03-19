@@ -9,6 +9,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 import time
 import tensorflow as tf
@@ -23,148 +26,103 @@ import math
 def action_scaling(u):
     return 10**u
 
-if __name__ == '__main__':
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/RT3D_gene_transcription")
+def train_RT3D(cfg : DictConfig):
+    cfg = cfg.example
+    
     # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
     n_cores = multiprocessing.cpu_count()
     print('Num CPU cores:', n_cores)
 
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'gene_transcription'))
-    params = json.load(open(os.path.join(param_dir, 'params_gene_transcription.json')))
-
-
-
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-
-    actual_params = DM(actual_params)
-
-    normaliser = np.array(normaliser)
-
+    actual_params = DM(cfg.environment.actual_params)
     n_params = actual_params.size()[0]
-    n_system_variables = len(y0)
+    n_system_variables = len(cfg.environment.y0)
     n_FIM_elements = sum(range(n_params + 1))
     n_tot = n_system_variables + n_params * n_system_variables + n_FIM_elements
-
     param_guesses = actual_params
 
-    if len(sys.argv) == 3:
+    normaliser = np.array(cfg.environment.normaliser)
 
-        if int(sys.argv[2]) <= 10:
-            prior = False
-        else:
-            prior = True
-        # for parameter scan
-        '''
-        exp = int(sys.argv[2]) - 1
-        # 3 learning rates
-        # 4 hl sizes
-        # 3 repeats per combination
-        n_repeats = 3
-        comb = exp // n_repeats
-        pol_learning_rate = pol_learning_rates[comb//len(hidden_layer_sizes)]
-        hidden_layer_size = hidden_layer_sizes[comb%len(hidden_layer_sizes)]
-        '''
+    os.makedirs(cfg.save_path, exist_ok=True)
 
-        save_path = sys.argv[1] + sys.argv[2] + '/'
-        print(n_episodes)
-
-    elif len(sys.argv) == 2:
-        save_path = sys.argv[1] + '/'
-
-    else:
-        save_path = './working_results'
-    os.makedirs(save_path, exist_ok=True)
-
-    test_episode = False
-    recurrent = True
-
-    # these chosen from parameter scan
-    pol_learning_rate = 0.00005
-    hidden_layer_size = [[64, 64], [128, 128]]
-
-    if recurrent:
-        # pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, [32, 32], [64,64,64], n_controlled_inputs]
-        pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs,
-                           hidden_layer_size[0], hidden_layer_size[1], n_controlled_inputs]
-        val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs,
-                           n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1],
+    if cfg.recurrent:
+        # pol_layer_sizes = [cfg.environment.n_observed_variables + 1, cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs, [32, 32], [64,64,64], cfg.environment.n_controlled_inputs]
+        pol_layer_sizes = [cfg.environment.n_observed_variables + 1, cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs,
+                           cfg.hidden_layer_size[0], cfg.hidden_layer_size[1], cfg.environment.n_controlled_inputs]
+        val_layer_sizes = [cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs,
+                           cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs, cfg.hidden_layer_size[0], cfg.hidden_layer_size[1],
                            1]
-        # agent = DQN_agent(layer_sizes=[n_observed_variables + n_params + n_FIM_elements + 2, 100, 100, num_inputs ** n_controlled_inputs])
+        # agent = DQN_agent(layer_sizes=[cfg.environment.n_observed_variables + n_params + n_FIM_elements + 2, 100, 100, cfg.environment.num_inputs ** cfg.environment.n_controlled_inputs])
     else:
-        pol_layer_sizes = [n_observed_variables + 1, 0, [], [128, 128], n_controlled_inputs]
-        val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, 0, [], [128, 128], 1]
+        pol_layer_sizes = [cfg.environment.n_observed_variables + 1, 0, [], [128, 128], cfg.environment.n_controlled_inputs]
+        val_layer_sizes = [cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs, 0, [], [128, 128], 1]
 
     # agent = DRPG_agent(layer_sizes=layer_sizes, learning_rate = 0.0004, critic = True)
-    agent = RT3D_agent(val_layer_sizes=val_layer_sizes, pol_layer_sizes=pol_layer_sizes, policy_act=tf.nn.sigmoid,
-                       val_learning_rate=0.0001, pol_learning_rate=pol_learning_rate)  # , pol_learning_rate=0.0001)
-    agent.batch_size = int(N_control_intervals * skip)
-    agent.max_length = N_control_intervals + 1
-    agent.mem_size = 500000000
-
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser
+    agent = instantiate(
+        cfg.model,
+        pol_layer_sizes=pol_layer_sizes,
+        val_layer_sizes=val_layer_sizes,
+        batch_size=int(cfg.environment.N_control_intervals * cfg.environment.skip),
+        max_length=cfg.environment.N_control_intervals + 1,
+    )
+    
+    args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, cfg.environment.dt, cfg.environment.control_interval_time, normaliser
     env = OED_env(*args)
 
-    unstable = 0
-
-    max_std = 0  # for exploring
-    explore_rate = max_std
+    explore_rate = cfg.explore_rate
     alpha = 1
-    # n_episodes = 10000
-    env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
+    env.mapped_trajectory_solver = env.CI_solver.map(cfg.environment.skip, "thread", n_cores)
     total_t = time.time()
 
+    unstable = 0
     n_unstables = []
     all_returns = []
     all_test_returns = []
-    agent.std = 0.1
-    agent.noise_bounds = [-0.25, 0.25]
-    agent.action_bounds = [0, 1]
-    policy_delay = 2
     update_count = 0
     fitted = False
 
-    agent.load_network('/Users/neythen/Desktop/Projects/RL_OED/results/rt3d_gene_transcription_230822/repeat6')
-    print('time:', control_interval_time)
-    for episode in range(int(n_episodes // skip)):
+    if cfg.load_agent_network:
+        agent.load_network(cfg.agent_network_path)
+    print('time:', cfg.environment.control_interval_time)
+    
+    for episode in range(int(cfg.environment.n_episodes // cfg.environment.skip)):
         print(episode)
 
-        if prior:
-            actual_params = np.random.uniform(low=lb, high=ub, size=(skip, 5))
+        if cfg.environment.prior:
+            actual_params = np.random.uniform(low=cfg.environment.lb, high=cfg.environment.ub, size=(cfg.environment.skip, 5))
         else:
-            actual_params = np.random.uniform(low=[20, 500000, 1.09e+09, 0.000257, 4], high=[20, 500000, 1.09e+09, 0.000257, 4], size=(skip, 5))
+            actual_params = np.random.uniform(low=[20, 500000, 1.09e+09, 0.000257, 4], high=[20, 500000, 1.09e+09, 0.000257, 4], size=(cfg.environment.skip, 5))
         env.param_guesses = DM(actual_params)
 
-        states = [env.get_initial_RL_state_parallel() for i in range(skip)]
+        states = [env.get_initial_RL_state_parallel() for i in range(cfg.environment.skip)]
 
-        e_returns = [0 for _ in range(skip)]
+        e_returns = [0 for _ in range(cfg.environment.skip)]
 
         e_actions = []
 
         e_exploit_flags = []
-        e_rewards = [[] for _ in range(skip)]
-        e_us = [[] for _ in range(skip)]
-        trajectories = [[] for _ in range(skip)]
+        e_rewards = [[] for _ in range(cfg.environment.skip)]
+        e_us = [[] for _ in range(cfg.environment.skip)]
+        trajectories = [[] for _ in range(cfg.environment.skip)]
 
-        sequences = [[[0] * pol_layer_sizes[1]] for _ in range(skip)]
+        sequences = [[[0] * pol_layer_sizes[1]] for _ in range(cfg.environment.skip)]
 
         env.reset()
         env.param_guesses = DM(actual_params)
-        env.logdetFIMs = [[] for _ in range(skip)]
-        env.detFIMs = [[] for _ in range(skip)]
+        env.logdetFIMs = [[] for _ in range(cfg.environment.skip)]
+        env.detFIMs = [[] for _ in range(cfg.environment.skip)]
 
-        for e in range(0, N_control_intervals):
+        for e in range(0, cfg.environment.N_control_intervals):
 
-            if recurrent:
+            if cfg.recurrent:
                 inputs = [states, sequences]
             else:
                 inputs = [states]
 
-            if episode < 1000 // skip:
-                actions = agent.get_actions(inputs, explore_rate=0, test_episode=test_episode)
+            if episode < 1000 // cfg.environment.skip:
+                actions = agent.get_actions(inputs, explore_rate=0, test_episode=cfg.test_episode)
             else:
-                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=test_episode)
+                actions = agent.get_actions(inputs, explore_rate=cfg.explore_rate, test_episode=cfg.test_episode)
 
             e_actions.append(actions)
 
@@ -180,7 +138,7 @@ if __name__ == '__main__':
 
                 action = actions[i]
 
-                if e == N_control_intervals - 1 or np.all(np.abs(next_state) >= 1) or math.isnan(np.sum(next_state)):
+                if e == cfg.environment.N_control_intervals - 1 or np.all(np.abs(next_state) >= 1) or math.isnan(np.sum(next_state)):
                     # next_state = [0]*pol_layer_sizes[0] # maybe dont need this
                     done = True
 
@@ -196,7 +154,7 @@ if __name__ == '__main__':
             # print('sequences', sequences[0])
             states = next_states
 
-        if test_episode:
+        if cfg.test_episode:
             trajectories = trajectories[:-1]
 
         for trajectory in trajectories:
@@ -210,47 +168,47 @@ if __name__ == '__main__':
                 print((trajectory[-1][0]))
 
 
-        if episode > 1000 // skip:
+        if episode > 1000 // cfg.environment.skip:
             print('training', update_count)
             t = time.time()
-            for hello in range(skip):
+            for hello in range(cfg.environment.skip):
                 # print(e, episode, hello, update_count)
                 update_count += 1
-                policy = update_count % policy_delay == 0
+                policy = update_count % cfg.policy_delay == 0
 
-                agent.Q_update(policy=policy, fitted=fitted, recurrent=recurrent, low_mem = True)
+                agent.Q_update(policy=policy, fitted=fitted, recurrent=cfg.recurrent, low_mem = True)
             print('fitting time', time.time() - t)
 
-        explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * max_std
+        explore_rate = agent.get_rate(episode, 0, 1, cfg.environment.n_episodes / (11 * cfg.environment.skip)) * cfg.max_std
         '''
-        if episode > 1000//skip:
+        if episode > 1000//cfg.environment.skip:
             update_count += 1
-            agent.Q_update( policy=update_count%policy_delay == 0, fitted=True)
+            agent.Q_update( policy=update_count%cfg.policy_delay == 0, fitted=True)
         '''
 
         print('n unstable ', unstable)
         n_unstables.append(unstable)
 
-        if test_episode:
+        if cfg.test_episode:
             all_returns.extend(e_returns[:-1])
             all_test_returns.append(np.sum(np.array(e_rewards)[-1, :]))
         else:
             all_returns.extend(e_returns)
 
         print()
-        print('EPISODE: ', episode, episode * skip)
+        print('EPISODE: ', episode, episode * cfg.environment.skip)
 
-        print('moving av return:', np.mean(all_returns[-10 * skip:]))
+        print('moving av return:', np.mean(all_returns[-10 * cfg.environment.skip:]))
         print('explore rate: ', explore_rate)
         print('alpha:', alpha)
-        print('av return: ', np.mean(all_returns[-skip:]))
+        print('av return: ', np.mean(all_returns[-cfg.environment.skip:]))
         print()
 
         # print('us:', np.array(e_us)[0, :])
 
 
 
-        if test_episode:
+        if cfg.test_episode:
             print('test actions:', np.array(e_actions)[:, -1])
             print('test rewards:', np.array(e_rewards)[-1, :])
             print('test return:', np.sum(np.array(e_rewards)[-1, :]))
@@ -259,19 +217,22 @@ if __name__ == '__main__':
     print('time:', time.time() - total_t)
     print(env.detFIMs[-1])
     print(env.logdetFIMs[-1])
-    np.save(save_path + '/all_returns.npy', np.array(all_returns))
-    if test_episode:
-        np.save(save_path + '/all_test_returns.npy', np.array(all_test_returns))
+    np.save(cfg.save_path + '/all_returns.npy', np.array(all_returns))
+    if cfg.test_episode:
+        np.save(cfg.save_path + '/all_test_returns.npy', np.array(all_test_returns))
 
-    np.save(save_path + '/n_unstables.npy', np.array(n_unstables))
-    np.save(save_path + '/actions.npy', np.array(agent.actions))
-    agent.save_network(save_path)
+    np.save(cfg.save_path + '/n_unstables.npy', np.array(n_unstables))
+    np.save(cfg.save_path + '/actions.npy', np.array(agent.actions))
+    agent.save_network(cfg.save_path)
 
-    # np.save(save_path + 'values.npy', np.array(agent.values))
-    t = np.arange(N_control_intervals) * int(control_interval_time)
+    # np.save(cfg.save_path + 'values.npy', np.array(agent.values))
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
 
     plt.plot(all_test_returns)
     plt.figure()
     plt.plot(all_returns)
     plt.show()
 
+
+if __name__ == '__main__':
+    train_RT3D()

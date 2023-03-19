@@ -1,122 +1,110 @@
 
-import sys
+import math
 import os
+import sys
+import time
 
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
 print(IMPORT_PATH)
 
-import math
-from casadi import *
-import numpy as np
-import matplotlib as mpl
-mpl.use('tkagg')
-import matplotlib.pyplot as plt
-
-
-import time
-from RED.agents.continuous_agents import RT3D_agent
-from RED.environments.OED_env import OED_env
-from RED.environments.chemostat.xdot_chemostat import xdot
-import tensorflow as tf
-
 import multiprocessing
-import json
+
+import hydra
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from casadi import *
+from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
+
+from RED.agents.continuous_agents.rt3d import RT3D_agent
+from RED.environments.chemostat.xdot_chemostat import xdot
+from RED.environments.OED_env import OED_env
+
+matplotlib.use('tkagg')
+OmegaConf.register_new_resolver("eval", eval) # https://omegaconf.readthedocs.io/en/2.3_branch/how_to_guides.html#how-to-perform-arithmetic-using-eval-as-a-resolver
 
 
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_4_RT3D_chemostat")
+def train_RT3D(cfg : DictConfig):
+    ### config setup
+    cfg = cfg.example
+    print(
+        "--- Configuration ---",
+        OmegaConf.to_yaml(cfg, resolve=True),
+        "--- End of configuration ---",
+        sep="\n\n"
+    )
+    os.makedirs(cfg.save_path, exist_ok=True)
 
-if __name__ == '__main__':
-    #setup
-    n_cores = multiprocessing.cpu_count()
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-    actual_params = DM(actual_params)
-    normaliser = np.array(normaliser)
-    n_params = actual_params.size()[0]
-    n_system_variables = len(y0)
-    n_FIM_elements = sum(range(n_params + 1))
-    n_tot = n_system_variables + n_params * n_system_variables + n_FIM_elements
-    param_guesses = actual_params
-    physical_devices = tf.config.list_physical_devices('GPU')
-    try:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
-    except:
-        pass
-    save_path = os.path.join('.', 'results')
+    ### agent setup
+    agent = instantiate(cfg.model)
+    explore_rate = cfg.initial_explore_rate
+    seq_dim = cfg.environment.n_observed_variables + 1 + cfg.environment.n_controlled_inputs
 
-    # agent setup
-    pol_learning_rate = 0.00005
-    hidden_layer_size = [[64, 64], [128, 128]]
-    pol_layer_sizes = [n_observed_variables + 1, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], n_controlled_inputs]
-    val_layer_sizes = [n_observed_variables + 1 + n_controlled_inputs, n_observed_variables + 1 + n_controlled_inputs, hidden_layer_size[0], hidden_layer_size[1], 1]
-    agent = RT3D_agent(val_layer_sizes = val_layer_sizes, pol_layer_sizes = pol_layer_sizes,  policy_act = tf.nn.sigmoid, val_learning_rate = 0.0001, pol_learning_rate = pol_learning_rate)#, pol_learning_rate=0.0001)
-    agent.batch_size = int(N_control_intervals * skip)
-    agent.max_length = 11
-    agent.mem_size = 500000000
-    max_std = 1  # for exploring
-    explore_rate = max_std
-    alpha = 1
-    all_returns = []
-    all_test_returns = []
-    agent.std = 0.1
-    agent.noise_bounds = [-0.25, 0.25]
-    agent.action_bounds = [0, 1]
-    policy_delay = 2
+    ### env setup
+    env, n_params = setup_env(cfg)
+    
+    total_episodes = cfg.environment.n_episodes // cfg.environment.skip
+    history = {k: [] for k in ["returns", "actions", "rewards", "us", "explore_rate"]}
     update_count = 0
 
-    # env setup
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
-    env = OED_env(*args)
-    env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
-
-
-
-    for episode in range(int(n_episodes//skip)): #training loop
-
-        actual_params = np.random.uniform(low=[1,  0.00048776, 0.00006845928], high=[1,  0.00048776, 0.00006845928], size = (skip, 3))
+    ### training loop
+    for episode in range(total_episodes):
+        actual_params = np.random.uniform(
+            low=cfg.environment.actual_params,
+            high=cfg.environment.actual_params,
+            size=(cfg.environment.skip, n_params)
+        )
         env.param_guesses = DM(actual_params)
-        states = [env.get_initial_RL_state_parallel() for i in range(skip)]
-        e_returns = [0 for _ in range(skip)]
-        e_actions = []
-        e_exploit_flags =[]
-        e_rewards = [[] for _ in range(skip)]
-        e_us = [[] for _ in range(skip)]
-        trajectories = [[] for _ in range(skip)]
-        sequences = [[[0]*pol_layer_sizes[1]] for _ in range(skip)]
+        
+        ### episode buffers for agent
+        states = [env.get_initial_RL_state_parallel() for i in range(cfg.environment.skip)]
+        trajectories = [[] for _ in range(cfg.environment.skip)]
+        sequences = [[[0] * seq_dim] for _ in range(cfg.environment.skip)]
 
+        ### episode logging buffers
+        e_returns = [0 for _ in range(cfg.environment.skip)]
+        e_actions = []
+        e_rewards = [[] for _ in range(cfg.environment.skip)]
+        e_us = [[] for _ in range(cfg.environment.skip)]
+
+        ### reset env between episodes
         env.reset()
         env.param_guesses = DM(actual_params)
-        env.logdetFIMs = [[] for _ in range(skip)]
-        env.detFIMs = [[] for _ in range(skip)]
+        env.logdetFIMs = [[] for _ in range(cfg.environment.skip)]
+        env.detFIMs = [[] for _ in range(cfg.environment.skip)]
 
-        for e in range(0, N_control_intervals): # run an episode
+        ### run an episode
+        for control_interval in range(0, cfg.environment.N_control_intervals):
             inputs = [states, sequences]
 
-
-            if episode < 1000 // skip:
-                actions = agent.get_actions(inputs, explore_rate = 1, test_episode = True, recurrent=True)
+            ### get agent's actions
+            if episode < 1000 // cfg.environment.skip:
+                actions = agent.get_actions(inputs, explore_rate=1, test_episode=True, recurrent=True)
             else:
                 actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=True, recurrent=True)
 
             e_actions.append(actions)
-            outputs = env.map_parallel_step(np.array(actions).T, actual_params, continuous = True)
+            outputs = env.map_parallel_step(actions.T, actual_params, continuous = True)
             next_states = []
 
-            for i,o in enumerate(outputs): #extract outputs from experiments run in parallel
-                next_state, reward, done, _, u  = o
+            for i, obs in enumerate(outputs): #extract outputs from experiments run in parallel
+                state = states[i]
+                action = actions[i]
+                
+                next_state, reward, done, _, u  = obs
                 e_us[i].append(u)
                 next_states.append(next_state)
-                state = states[i]
 
-                action = actions[i]
-
-                if e == N_control_intervals - 1 or np.all(np.abs(next_state) >= 1) or math.isnan(np.sum(next_state)):
+                ### set done flag
+                if control_interval == cfg.environment.N_control_intervals - 1 \
+                    or np.all(np.abs(next_state) >= 1) \
+                    or math.isnan(np.sum(next_state)):
                     done = True
 
+                ### memorize transition
                 transition = (state, action, reward, next_state, done)
                 trajectories[i].append(transition)
                 sequences[i].append(np.concatenate((state, action)))
@@ -125,40 +113,63 @@ if __name__ == '__main__':
                     e_returns[i] += reward
             states = next_states
 
-        for trajectory in trajectories: # append trajectories to memory
-            if np.all( [np.all(np.abs(trajectory[i][0]) <= 1) for i in range(len(trajectory))] ) and not math.isnan(np.sum(trajectory[-1][0])): # check for instability
+        ### append trajectories to memory
+        for trajectory in trajectories:
+            # check for instability
+            if np.all([np.all(np.abs(trajectory[i][0]) <= 1) for i in range(len(trajectory))]) \
+                and not math.isnan(np.sum(trajectory[-1][0])):
                 agent.memory.append(trajectory)
 
-        if episode > 1000 // skip: # train agent
-            t = time.time()
-            for _ in range(skip):
+        ### train agent
+        if episode > 1000 // cfg.environment.skip:
+            for _ in range(cfg.environment.skip):
                 update_count += 1
-                policy = update_count % policy_delay == 0
-                agent.Q_update(policy=policy, fitted=False, recurrent=True)
+                policy = update_count % cfg.policy_delay == 0
+                agent.Q_update(policy=policy, recurrent=True)
 
+        ### update explore rate
+        explore_rate = cfg.max_std * agent.get_rate(
+            episode=episode,
+            min_rate=0,
+            max_rate=1,
+            denominator=cfg.environment.n_episodes / (11 * cfg.environment.skip)
+        )
 
-        explore_rate = agent.get_rate( episode, 0, 1, n_episodes / (11 * skip)) * max_std
-
-        all_returns.extend(e_returns)
+        ### log results
+        history["returns"].extend(e_returns)
+        history["actions"].extend(e_actions)
+        history["rewards"].extend(e_rewards)
+        history["us"].extend(e_us)
+        history["explore_rate"].append(explore_rate)
 
         print()
-        print('EPISODE: ', episode, episode*skip)
-        print('explore rate: ', explore_rate)
-        print('av return: ', np.mean(all_returns[-skip:]))
-        print()
+        print(f"EPISODE: [{episode}/{total_episodes}] ({episode * cfg.environment.skip})")
+        print(f"explore rate: {explore_rate}")
+        print(f"average return: {np.mean(history['returns'][-cfg.environment.skip:])}")
 
+    ### save results and plot
+    agent.save_network(cfg.save_path)
+    for k in history.keys():
+        np.save(os.path.join(cfg.save_path, f'{k}.npy'), np.array(history[k]))
 
-
-    #plot and save results
-    agent.save_network(save_path)
-    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
-    np.save(os.path.join(save_path,'actions.npy'), np.array(agent.actions))
-
-
-    t = np.arange(N_control_intervals) * int(control_interval_time)
-
-
-
-    plt.plot(all_returns)
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
+    plt.plot(history['returns'])
     plt.show()
 
+
+def setup_env(cfg):
+    n_cores = multiprocessing.cpu_count()
+    actual_params = DM(cfg.environment.actual_params)
+    normaliser = np.array(cfg.environment.normaliser)
+    n_params = actual_params.size()[0]
+    param_guesses = actual_params
+    args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
+        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+        cfg.environment.dt, cfg.environment.control_interval_time, normaliser
+    env = OED_env(*args)
+    env.mapped_trajectory_solver = env.CI_solver.map(cfg.environment.skip, "thread", n_cores)
+    return env, n_params
+
+
+if __name__ == '__main__':
+    train_RT3D()

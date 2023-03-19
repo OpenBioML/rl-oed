@@ -12,7 +12,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('tkagg')
 import matplotlib.pyplot as plt
-
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 import time
 
@@ -24,61 +26,66 @@ import json
 import multiprocessing
 
 
-
-
-use_old_state = True
-if __name__ == '__main__':
-
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_2_FQ_chemostat")
+def train_FQ(cfg : DictConfig):
     #run setup
+    cfg = cfg.example
+    
     n_cores = multiprocessing.cpu_count()
-    param_dir = os.path.join(os.path.join(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'RED',
-                     'environments'), 'chemostat'))
-    params = json.load(open(os.path.join(param_dir, 'params_chemostat.json')))
-    n_episodes, skip, y0, actual_params, input_bounds, n_controlled_inputs, num_inputs, dt, lb, ub, N_control_intervals, control_interval_time, n_observed_variables, prior, normaliser = \
-        [params[k] for k in params.keys()]
-    actual_params = DM(actual_params)
-    if use_old_state:
-        normaliser = np.array([1e3, 1e1, 1e-3, 1e-4, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e2])
-    normaliser = np.array(normaliser)
+    
+    actual_params = DM(cfg.environment.actual_params)
+    if cfg.use_old_state:
+        normaliser = np.array(cfg.old_state_normaliser)
+    else:
+        normaliser = np.array(cfg.environment.normaliser)
     n_params = actual_params.size()[0]
-    n_system_variables = len(y0)
+    n_system_variables = len(cfg.environment.y0)
     n_FIM_elements = sum(range(n_params + 1))
-    n_tot = n_observed_variables + n_params * n_system_variables + n_FIM_elements
+    n_tot = cfg.environment.n_observed_variables + n_params * n_system_variables + n_FIM_elements
     param_guesses = actual_params
-    save_path = os.path.join('.', 'results')
-    agent = KerasFittedQAgent(layer_sizes=[n_observed_variables + n_params + n_FIM_elements + 1, 150, 150, 150, num_inputs ** n_controlled_inputs])
-    args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time, normaliser
+    
+    agent = instantiate(
+        cfg.model,
+        layer_sizes=[
+            cfg.environment.n_observed_variables + n_params + n_FIM_elements + 1,
+            *cfg.hidden_layer_sizes,
+            cfg.environment.num_inputs ** cfg.environment.n_controlled_inputs
+        ]
+    )
+    
+    args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
+        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+        cfg.environment.dt, cfg.environment.control_interval_time, normaliser
     env = OED_env(*args)
-    actual_params = np.random.uniform(low=[1, 0.00048776, 0.00006845928], high=[1, 0.00048776, 0.00006845928],
-                                      size=(skip, 3))
     env.param_guesses = DM(actual_params)
-    explore_rate = 1
-    alpha = 1
-    env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
+    actual_params = np.random.uniform(low=[1, 0.00048776, 0.00006845928], high=[1, 0.00048776, 0.00006845928],
+                                      size=(cfg.environment.skip, 3))
+    env.mapped_trajectory_solver = env.CI_solver.map(cfg.environment.skip, "thread", n_cores)
+    explore_rate = cfg.init_explore_rate
+    alpha = cfg.init_alpha
     t = time.time()
     all_returns = []
 
 
-    for episode in range(int(n_episodes//skip)): # training loop
+    for episode in range(int(cfg.environment.n_episodes//cfg.environment.skip)): # training loop
 
-        states  = [env.get_initial_RL_state_parallel(use_old_state = use_old_state, i=i) for i in range(skip)]
+        states  = [env.get_initial_RL_state_parallel(use_old_state = cfg.use_old_state, i=i) for i in range(cfg.environment.skip)]
 
-        e_returns = [0 for _ in range(skip)]
+        e_returns = [0 for _ in range(cfg.environment.skip)]
         e_actions = []
-        e_rewards = [[] for _ in range(skip)]
-        trajectories = [[] for _ in range(skip)]
+        e_rewards = [[] for _ in range(cfg.environment.skip)]
+        trajectories = [[] for _ in range(cfg.environment.skip)]
 
         env.reset()
         env.param_guesses = DM(actual_params)
-        env.logdetFIMs = [[] for _ in range(skip)]
-        env.detFIMs = [[] for _ in range(skip)]
+        env.logdetFIMs = [[] for _ in range(cfg.environment.skip)]
+        env.detFIMs = [[] for _ in range(cfg.environment.skip)]
 
-        for e in range(0, N_control_intervals): # run an episode
+        for e in range(0, cfg.environment.N_control_intervals): # run an episode
 
             actions = agent.get_actions(states, explore_rate)
             e_actions.append(actions)
-            outputs = env.map_parallel_step(np.array(actions).T, actual_params, use_old_state = use_old_state)
+            outputs = env.map_parallel_step(np.array(actions).T, actual_params, use_old_state = cfg.use_old_state)
             next_states = []
 
             for i,o in enumerate(outputs): # extract outputs from episodes that have been run in parallel
@@ -87,7 +94,7 @@ if __name__ == '__main__':
                 state = states[i]
                 action = actions[i]
 
-                if e == N_control_intervals - 1 or np.all(np.abs(next_state) >= 1) or math.isnan(np.sum(next_state)):
+                if e == cfg.environment.N_control_intervals - 1 or np.all(np.abs(next_state) >= 1) or math.isnan(np.sum(next_state)):
                     next_state = [None]*agent.layer_sizes[0]
                     done = True
 
@@ -109,8 +116,8 @@ if __name__ == '__main__':
 
 
         if episode != 0: # train agent
-            explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11*skip))
-            alpha = agent.get_rate(episode, 0, 1, n_episodes / (10*skip))
+            explore_rate = agent.get_rate(episode, 0, 1, cfg.environment.n_episodes / (11*cfg.environment.skip))
+            alpha = agent.get_rate(episode, 0, 1, cfg.environment.n_episodes / (10*cfg.environment.skip))
 
             if explore_rate == 1:
                 n_iters = 0
@@ -122,19 +129,19 @@ if __name__ == '__main__':
                 history = agent.fitted_Q_update(alpha = alpha)
 
         print()
-        print('EPISODE: ', episode * skip)
+        print('EPISODE: ', episode * cfg.environment.skip)
         print('explore rate: ', explore_rate)
 
-        print('av return: ', np.mean(all_returns[-skip:]))
+        print('av return: ', np.mean(all_returns[-cfg.environment.skip:]))
 
     #save results and plot
-    agent.save_network(save_path)
-    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
+    agent.save_network(cfg.save_path)
+    np.save(os.path.join(cfg.save_path, 'all_returns.npy'), np.array(all_returns))
 
-    np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
-    np.save(os.path.join(save_path, 'values.npy'), np.array(agent.values))
+    np.save(os.path.join(cfg.save_path, 'actions.npy'), np.array(agent.actions))
+    np.save(os.path.join(cfg.save_path, 'values.npy'), np.array(agent.values))
 
-    t = np.arange(N_control_intervals) * int(control_interval_time)
+    t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
 
 
 
@@ -142,8 +149,12 @@ if __name__ == '__main__':
     plt.plot(all_returns)
     plt.ylabel('Return')
     plt.xlabel('Episode')
-    plt.savefig(os.path.join(save_path,'return.pdf'))
+    plt.savefig(os.path.join(cfg.save_path,'return.pdf'))
 
 
 
     plt.show()
+
+
+if __name__ == '__main__':
+    train_FQ()
