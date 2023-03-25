@@ -22,7 +22,6 @@ from RED.agents.continuous_agents.rt3d import RT3D_agent
 from RED.environments.chemostat.xdot_chemostat import xdot
 from RED.environments.OED_env import OED_env
 
-matplotlib.use('tkagg')
 OmegaConf.register_new_resolver("eval", eval) # https://omegaconf.readthedocs.io/en/2.3_branch/how_to_guides.html#how-to-perform-arithmetic-using-eval-as-a-resolver
 
 
@@ -36,7 +35,11 @@ def train_RT3D(cfg : DictConfig):
         "--- End of configuration ---",
         sep="\n\n"
     )
-    os.makedirs(cfg.save_path, exist_ok=True)
+
+    ### prepare save path
+    save_path = os.path.join(cfg.save_path, time.strftime("%Y-%m-%d_%H-%M"))
+    os.makedirs(save_path, exist_ok=True)
+    print("Results will be saved in: ", save_path)
 
     ### agent setup
     agent = instantiate(cfg.model)
@@ -148,9 +151,9 @@ def train_RT3D(cfg : DictConfig):
         print(f"average return: {np.mean(history['returns'][-cfg.environment.skip:])}")
 
     ### save results and plot
-    agent.save_network(cfg.save_path)
+    agent.save_network(save_path)
     for k in history.keys():
-        np.save(os.path.join(cfg.save_path, f'{k}.npy'), np.array(history[k]))
+        np.save(os.path.join(save_path, f'{k}.npy'), np.array(history[k]))
 
     t = np.arange(cfg.environment.N_control_intervals) * int(cfg.environment.control_interval_time)
     plt.plot(history['returns'])
