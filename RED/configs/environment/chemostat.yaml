@@ -1,5 +1,5 @@
 xdot_path: RED/environments/chemostat/xdot_chemostat.py
-n_episodes: 30000
+n_episodes: 17500
 skip: 10
 y0: [200000, 0, 1]
 actual_params: [1, 0.00048776, 0.00006845928]
