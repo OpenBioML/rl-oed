@@ -5,15 +5,21 @@ defaults:
 
 policy_delay: 2
 initial_explore_rate: 1
-max_std: 1
-save_path: results/
+explore_rate_mul: 1
+test_episode: False
+save_path: ${hydra:run.dir}
 
 model:
-  batch_size: ${eval:'${example.environment.N_control_intervals} * ${example.environment.skip}'}
+  batch_size: ${eval:'${example.environment.N_control_intervals} * ${example.environment.n_parallel_experiments}'}
   val_learning_rate: 0.0001
   pol_learning_rate: 0.00005
   action_bounds: [0, 1]
   noise_bounds: [-0.25, 0.25]
+  noise_std: 0.1
+  gamma: 1
+  polyak: 0.995
+  max_length: 11
+  mem_size: 500_000_000
   pol_module_specs:
     - input_size: ${eval:'${example.environment.n_observed_variables} + 1 + ${example.environment.n_controlled_inputs}'}
       layers:
