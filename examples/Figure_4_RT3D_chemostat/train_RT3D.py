@@ -9,7 +9,6 @@ sys.path.append(IMPORT_PATH)
 import multiprocessing
 
 import hydra
-import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
 from hydra.utils import instantiate
@@ -18,6 +17,7 @@ from omegaconf import DictConfig, OmegaConf
 from RED.agents.continuous_agents.rt3d import RT3D_agent
 from RED.environments.chemostat.xdot_chemostat import xdot
 from RED.environments.OED_env import OED_env
+from RED.utils.visualization import plot_returns
 
 # https://omegaconf.readthedocs.io/en/2.3_branch/how_to_guides.html#how-to-perform-arithmetic-using-eval-as-a-resolver
 OmegaConf.register_new_resolver("eval", eval)
@@ -167,9 +167,13 @@ def train_RT3D(cfg : DictConfig):
     agent.save_network(cfg.save_path)
     for k in history.keys():
         np.save(os.path.join(cfg.save_path, f"{k}.npy"), np.array(history[k]))
-
-    plt.plot(history["returns"])
-    plt.show()
+    plot_returns(
+        returns=history["returns"],
+        explore_rates=history["explore_rate"],
+        show=False,
+        save_to_dir=cfg.save_path,
+        conv_window=25,
+    )
 
 
 def setup_env(cfg):
