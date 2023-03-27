@@ -143,9 +143,9 @@ def train_RT3D(cfg : DictConfig):
 
         ### log results
         history["returns"].extend(e_returns)
-        history["actions"].append(e_actions)
-        history["rewards"].append(e_rewards)
-        history["us"].append(e_us)
+        history["actions"].extend(np.array(e_actions).transpose(1, 0, 2))
+        history["rewards"].extend(e_rewards)
+        history["us"].extend(e_us)
         history["explore_rate"].append(explore_rate)
 
         print(
@@ -162,6 +162,14 @@ def train_RT3D(cfg : DictConfig):
                 f"test return:\n{np.sum(np.array(e_rewards)[-1, :])}",
                 sep="\n",
             )
+
+        ### checkpoint
+        if cfg.ckpt_freq is not None and episode % cfg.ckpt_freq == 0:
+            ckpt_dir = os.path.join(cfg.save_path, f"ckpt_{episode}")
+            os.makedirs(ckpt_dir, exist_ok=True)
+            agent.save_network(ckpt_dir)
+            for k in history.keys():
+                np.save(os.path.join(ckpt_dir, f"{k}.npy"), np.array(history[k]))
 
     ### save results and plot
     agent.save_network(cfg.save_path)

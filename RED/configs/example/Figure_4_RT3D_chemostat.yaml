@@ -8,6 +8,7 @@ initial_explore_rate: 1
 explore_rate_mul: 1
 test_episode: False
 save_path: ${hydra:run.dir}
+ckpt_freq: 50
 
 model:
   batch_size: ${eval:'${example.environment.N_control_intervals} * ${example.environment.n_parallel_experiments}'}
