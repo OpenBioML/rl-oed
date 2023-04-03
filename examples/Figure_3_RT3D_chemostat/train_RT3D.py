@@ -9,6 +9,7 @@ sys.path.append(IMPORT_PATH)
 import multiprocessing
 
 import hydra
+import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
 from hydra.utils import instantiate
@@ -23,7 +24,7 @@ from RED.utils.visualization import plot_returns
 OmegaConf.register_new_resolver("eval", eval)
 
 
-@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_4_RT3D_chemostat")
+@hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_3_RT3D_chemostat")
 def train_RT3D(cfg : DictConfig):
     ### config setup
     cfg = cfg.example
@@ -53,14 +54,13 @@ def train_RT3D(cfg : DictConfig):
 
     ### training loop
     for episode in range(total_episodes):
-        # sample params from uniform distribution
         actual_params = np.random.uniform(
-            low=cfg.environment.lb,
-            high=cfg.environment.ub,
-            size=(cfg.environment.n_parallel_experiments, 3)
+            low=cfg.environment.actual_params,
+            high=cfg.environment.actual_params,
+            size=(cfg.environment.n_parallel_experiments, n_params)
         )
         env.param_guesses = DM(actual_params)
-
+        
         ### episode buffers for agent
         states = [env.get_initial_RL_state_parallel() for i in range(cfg.environment.n_parallel_experiments)]
         trajectories = [[] for _ in range(cfg.environment.n_parallel_experiments)]
@@ -106,7 +106,7 @@ def train_RT3D(cfg : DictConfig):
                 transition = (state, action, reward, next_state, done)
                 trajectories[i].append(transition)
                 sequences[i].append(np.concatenate((state, action)))
-                
+
                 ### log episode data
                 e_us[i].append(u)
                 next_states.append(next_state)
@@ -118,7 +118,7 @@ def train_RT3D(cfg : DictConfig):
         ### do not memorize the test trajectory (the last one)
         if cfg.test_episode:
             trajectories = trajectories[:-1]
-        
+
         ### append trajectories to memory
         for trajectory in trajectories:
             # check for instability
