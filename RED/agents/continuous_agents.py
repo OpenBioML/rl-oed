@@ -385,6 +385,7 @@ class RT3D_agent():
         actions = np.zeros((len(states), self.layer_sizes[-1]), dtype='float64')
 
         if len(exploit_inds) > 0:
+
             sequences = pad_sequences(sequences, maxlen=self.max_length, dtype='float64')
             exploit_actions = self.policy_network([np.array(states)[exploit_inds], np.array(sequences)[exploit_inds]])
 
@@ -607,11 +608,8 @@ class RT3D_agent():
 
 
         #values = self.predict([states, padded])
-        Q1_target = self.Q1_target
-        Q2_target = self.Q2_target
-        policy_target = self.policy_target
 
-        next_actions = policy_target([next_states, next_padded]) if recurrent else self.policy_target([next_states])
+        next_actions = self.policy_target([next_states, next_padded]) if recurrent else self.policy_target([next_states])
 
         # target policy smoothing
 
@@ -621,15 +619,12 @@ class RT3D_agent():
         next_actions = np.clip(next_actions + noise, self.action_bounds[0], self.action_bounds[1])
 
         #next_actions = np.vstack((actions[1:], actions[0])) #sarsa
-        Q1 = Q1_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q1_target.predict([tf.concat((next_states, next_actions), 1)])
-        Q2 = Q2_target.predict([tf.concat((next_states, next_actions), 1), next_padded]) if recurrent else Q2_target.predict([tf.concat((next_states, next_actions), 1)])
+        Q1 = self.Q1_target.predict([tf.concat((next_states, next_actions), 1), next_padded], verbose=0) if recurrent else self.Q1_target.predict([tf.concat((next_states, next_actions), 1)], verbose=0)
+        Q2 = self.Q2_target.predict([tf.concat((next_states, next_actions), 1), next_padded], verbose=0) if recurrent else sel.fQ2_target.predict([tf.concat((next_states, next_actions), 1)], verbose=0)
 
         next_values = np.minimum(Q1, Q2)
-        #next_values = Q1
+
         targets = rewards + self.gamma*(1-dones)*next_values
-
-
-
 
         randomize = np.arange(len(states))
         np.random.shuffle(randomize)
@@ -695,6 +690,7 @@ class RT3D_agent():
             states = inputs[0]
 
         if fitted:
+
             epochs = 500
             patience = 10
 
@@ -703,6 +699,7 @@ class RT3D_agent():
             callback = tf.keras.callbacks.EarlyStopping(monitor = 'loss', patience=patience, restore_best_weights=True)
             callbacks = [callback]
         else:
+
             epochs = 1
 
             patience = 1
@@ -717,6 +714,7 @@ class RT3D_agent():
 
 
         if policy:
+
             batches = math.ceil(states.shape[0]/self.batch_size)
 
             epoch_losses = []
@@ -763,10 +761,14 @@ class RT3D_agent():
             #print('Policy epochs: ', len(epoch_losses), epoch_losses[0], epoch_losses[-1])
 
         if not fitted and not monte_carlo and policy: # update target nbetworks when we update the policy
+
             self.update_target_network(self.Q1_network, self.Q1_target, self.polyak)
             self.update_target_network(self.Q2_network, self.Q2_target, self.polyak)
             self.update_target_network(self.policy_network, self.policy_target, self.polyak)
 
+        gc.collect()
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
 
     def save_network(self, save_path): # tested
         '''
