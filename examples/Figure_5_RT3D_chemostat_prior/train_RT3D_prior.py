@@ -1,27 +1,25 @@
 
-import sys
 import os
+import sys
 
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(IMPORT_PATH)
 
 
+import datetime
+import json
 import math
-from casadi import *
-import numpy as np
-import matplotlib.pyplot as plt
-from RED.agents.continuous_agents import RT3D_agent
-from RED.environments.OED_env import OED_env
-from RED.environments.chemostat.xdot_chemostat import xdot
-
+import multiprocessing
 import time
 
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
+from casadi import *
 
-import multiprocessing
-import json
-
-
+from RED.agents.continuous_agents import RT3D_agent
+from RED.environments.chemostat.xdot_chemostat import xdot
+from RED.environments.OED_env import OED_env
 
 if __name__ == '__main__':
     #setup
@@ -44,7 +42,9 @@ if __name__ == '__main__':
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
     except:
         pass
-    save_path = os.path.join('.', 'results')
+    save_path = os.path.join('.', 'results', datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    os.makedirs(save_path)
+    print(f"[INFO] Saving to {save_path}")
 
 
     #agent setup
@@ -67,10 +67,15 @@ if __name__ == '__main__':
     all_returns = []
     all_test_returns = []
 
+    ### Manual loading of checkpoints
+    # agent.load_network("./results/2023-03-24_13-18")
+
     #env setup
     args = y0, xdot, param_guesses, actual_params, n_observed_variables, n_controlled_inputs, num_inputs, input_bounds, dt, control_interval_time,normaliser
     env = OED_env(*args)
     env.mapped_trajectory_solver = env.CI_solver.map(skip, "thread", n_cores)
+
+    history = {k: [] for k in ["returns", "actions", "rewards", "us", "explore_rate"]}
 
     for episode in range(int(n_episodes//skip)): #training loop
         actual_params = np.random.uniform(low=lb, high=ub,  size = (skip, 3)) # sample from uniform distribution
@@ -115,6 +120,9 @@ if __name__ == '__main__':
                 if reward != -1: # dont include the unstable trajectories as they override the true return
                     e_rewards[i].append(reward)
                     e_returns[i] += reward
+                else:
+                    e_rewards[i].append(0)
+                    e_returns[i] += 0
             states = next_states
 
         for trajectory in trajectories:
@@ -136,23 +144,45 @@ if __name__ == '__main__':
         explore_rate = agent.get_rate(episode, 0, 1, n_episodes / (11 * skip)) * max_std
 
 
-        all_returns.extend(e_returns)
-        print()
-        print('EPISODE: ', episode, episode*skip)
+        # all_returns.extend(e_returns)
+        # print()
+        # print('EPISODE: ', episode, episode*skip)
+        # print('av return: ', np.mean(all_returns[-skip:]))
+        # print()
 
+        ### log results
+        history["returns"].extend(e_returns)
+        history["actions"].extend(np.array(e_actions).transpose(1, 0, 2))
+        history["rewards"].extend(e_rewards)
+        history["us"].extend(e_us)
+        history["explore_rate"].append(explore_rate)
 
-        print('av return: ', np.mean(all_returns[-skip:]))
-        print()
+        print(
+            f"\nEPISODE: [{episode}/{int(n_episodes//skip)}] ({episode * skip} experiments)",
+            f"explore rate:\t{explore_rate:.2f}",
+            f"average return:\t{np.mean(history['returns'][-skip:]):.5f}",
+            sep="\n",
+        )
 
-    #plot and save results
+        ### checkpoint
+        if episode % 50 == 0:
+            ckpt_dir = os.path.join(save_path, f"ckpt_{episode}")
+            os.makedirs(ckpt_dir, exist_ok=True)
+            agent.save_network(ckpt_dir)
+            for k in history.keys():
+                np.save(os.path.join(ckpt_dir, f"{k}.npy"), np.array(history[k]))
+
+    ### save results
     agent.save_network(save_path)
-    np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
-    np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
-
-
-    t = np.arange(N_control_intervals) * int(control_interval_time)
-
-
-    plt.plot(all_returns)
-    plt.show()
+    for k in history.keys():
+        np.save(os.path.join(save_path, f"{k}.npy"), np.array(history[k]))
+    
+    #plot and save results
+    # agent.save_network(save_path)
+    # np.save(os.path.join(save_path, 'all_returns.npy'), np.array(all_returns))
+    # np.save(os.path.join(save_path, 'actions.npy'), np.array(agent.actions))
+    
+    # t = np.arange(N_control_intervals) * int(control_interval_time)
+    # plt.plot(all_returns)
+    # plt.show()
 

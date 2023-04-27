@@ -1,14 +1,14 @@
+import copy
+import gc
+import math
+import os
+
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import numpy as np
-import math
 from tensorflow.keras import layers
-import copy
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-import gc
-
-import os
 
 class DRPG_agent():
     def __init__(self, layer_sizes, learning_rate = 0.001, critic=True):
@@ -564,7 +564,10 @@ class RT3D_agent():
         indices = np.random.randint(0, min(self.mem_size, len(self.memory)), size=(sample_size))
 
 
-        sample = np.array(self.memory)[indices]
+        # sample = np.array(self.memory)[indices]
+        sample = []
+        for i in indices:
+            sample.append(self.memory[i])
         #print(sample)
 
         sequences = []
