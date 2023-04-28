@@ -1,0 +1,22 @@
+name: rloed
+channels:
+  - nodefaults
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch=2.0.0
+  - pytorch-cuda=11.8
+  - torchvision
+  - jupyterlab
+  - matplotlib
+  - scipy
+  - pandas
+  - einops
+  - wandb
+  - hydra-core
+  - pip
+  - pip:
+    - casadi
+    - tensorflow=2.12.0
