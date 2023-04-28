@@ -3,6 +3,8 @@ defaults:
   - /model: RT3D_agent
   - _self_
 
+project_name: figure4-example
+
 policy_delay: 2
 initial_explore_rate: 1
 explore_rate_mul: 1

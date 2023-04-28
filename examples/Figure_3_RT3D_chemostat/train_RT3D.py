@@ -1,4 +1,3 @@
-
 import math
 import os
 import sys
@@ -14,7 +13,7 @@ import numpy as np
 from casadi import *
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
-
+import wandb
 from RED.agents.continuous_agents.rt3d import RT3D_agent
 from RED.environments.chemostat.xdot_chemostat import xdot
 from RED.environments.OED_env import OED_env
@@ -25,7 +24,7 @@ OmegaConf.register_new_resolver("eval", eval)
 
 
 @hydra.main(version_base=None, config_path="../../RED/configs", config_name="example/Figure_3_RT3D_chemostat")
-def train_RT3D(cfg : DictConfig):
+def train_RT3D(cfg: DictConfig):
     ### config setup
     cfg = cfg.example
     print(
@@ -34,6 +33,9 @@ def train_RT3D(cfg : DictConfig):
         "--- End of configuration ---",
         sep="\n\n"
     )
+
+    # start a new wandb run to track this script
+    wandb.init(project=cfg.project_name, config=dict(cfg))
 
     ### prepare save path
     os.makedirs(cfg.save_path, exist_ok=True)
@@ -53,14 +55,14 @@ def train_RT3D(cfg : DictConfig):
     update_count = 0
 
     ### training loop
-    for episode in range(total_episodes):
+    for episode in range(10):
         actual_params = np.random.uniform(
             low=cfg.environment.actual_params,
             high=cfg.environment.actual_params,
             size=(cfg.environment.n_parallel_experiments, n_params)
         )
         env.param_guesses = DM(actual_params)
-        
+
         ### episode buffers for agent
         states = [env.get_initial_RL_state_parallel() for i in range(cfg.environment.n_parallel_experiments)]
         trajectories = [[] for _ in range(cfg.environment.n_parallel_experiments)]
@@ -86,7 +88,8 @@ def train_RT3D(cfg : DictConfig):
             if episode < skip_first_n_episodes:
                 actions = agent.get_actions(inputs, explore_rate=1, test_episode=cfg.test_episode, recurrent=True)
             else:
-                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=cfg.test_episode, recurrent=True)
+                actions = agent.get_actions(inputs, explore_rate=explore_rate, test_episode=cfg.test_episode,
+                                            recurrent=True)
             e_actions.append(actions)
 
             ### step env
@@ -94,12 +97,12 @@ def train_RT3D(cfg : DictConfig):
             next_states = []
             for i, obs in enumerate(outputs):
                 state, action = states[i], actions[i]
-                next_state, reward, done, _, u  = obs
+                next_state, reward, done, _, u = obs
 
                 ### set done flag
                 if control_interval == cfg.environment.N_control_intervals - 1 \
-                    or np.all(np.abs(next_state) >= 1) \
-                    or math.isnan(np.sum(next_state)):
+                        or np.all(np.abs(next_state) >= 1) \
+                        or math.isnan(np.sum(next_state)):
                     done = True
 
                 ### memorize transition
@@ -110,9 +113,10 @@ def train_RT3D(cfg : DictConfig):
                 ### log episode data
                 e_us[i].append(u)
                 next_states.append(next_state)
-                if reward != -1: # dont include the unstable trajectories as they override the true return
+                if reward != -1:  # dont include the unstable trajectories as they override the true return
                     e_rewards[i].append(reward)
                     e_returns[i] += reward
+
             states = next_states
 
         ### do not memorize the test trajectory (the last one)
@@ -123,7 +127,7 @@ def train_RT3D(cfg : DictConfig):
         for trajectory in trajectories:
             # check for instability
             if np.all([np.all(np.abs(trajectory[i][0]) <= 1) for i in range(len(trajectory))]) \
-                and not math.isnan(np.sum(trajectory[-1][0])):
+                    and not math.isnan(np.sum(trajectory[-1][0])):
                 agent.memory.append(trajectory)
 
         ### train agent
@@ -147,6 +151,11 @@ def train_RT3D(cfg : DictConfig):
         history["rewards"].extend(e_rewards)
         history["us"].extend(e_us)
         history["explore_rate"].append(explore_rate)
+
+        ### log results to w and b
+        for i in range(len(e_returns)):
+            wandb.log({"returns": e_returns[i], "actions": np.array(e_actions).transpose(1, 0, 2)[i],
+                       "us": e_us[i], "explore_rate": explore_rate})
 
         print(
             f"\nEPISODE: [{episode}/{total_episodes}] ({episode * cfg.environment.n_parallel_experiments} experiments)",
@@ -183,6 +192,8 @@ def train_RT3D(cfg : DictConfig):
         conv_window=25,
     )
 
+    wandb.finish()
+
 
 def setup_env(cfg):
     n_cores = multiprocessing.cpu_count()
@@ -191,8 +202,8 @@ def setup_env(cfg):
     n_params = actual_params.size()[0]
     param_guesses = actual_params
     args = cfg.environment.y0, xdot, param_guesses, actual_params, cfg.environment.n_observed_variables, \
-        cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
-        cfg.environment.dt, cfg.environment.control_interval_time, normaliser
+           cfg.environment.n_controlled_inputs, cfg.environment.num_inputs, cfg.environment.input_bounds, \
+           cfg.environment.dt, cfg.environment.control_interval_time, normaliser
     env = OED_env(*args)
     env.mapped_trajectory_solver = env.CI_solver.map(cfg.environment.n_parallel_experiments, "thread", n_cores)
     return env, n_params
