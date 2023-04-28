@@ -17,7 +17,8 @@ from omegaconf import DictConfig, OmegaConf
 from RED.agents.continuous_agents.rt3d import RT3D_agent
 from RED.environments.chemostat.xdot_chemostat import xdot
 from RED.environments.OED_env import OED_env
-from RED.utils.visualization import plot_returns
+
+# from RED.utils.visualization import plot_returns
 
 # https://omegaconf.readthedocs.io/en/2.3_branch/how_to_guides.html#how-to-perform-arithmetic-using-eval-as-a-resolver
 OmegaConf.register_new_resolver("eval", eval)
@@ -110,9 +111,8 @@ def train_RT3D(cfg : DictConfig):
                 ### log episode data
                 e_us[i].append(u)
                 next_states.append(next_state)
-                if reward != -1: # dont include the unstable trajectories as they override the true return
-                    e_rewards[i].append(reward)
-                    e_returns[i] += reward
+                e_rewards[i].append(reward if reward != -1 else 0)
+                e_returns[i] += reward
             states = next_states
 
         ### do not memorize the test trajectory (the last one)
@@ -175,13 +175,13 @@ def train_RT3D(cfg : DictConfig):
     agent.save_network(cfg.save_path)
     for k in history.keys():
         np.save(os.path.join(cfg.save_path, f"{k}.npy"), np.array(history[k]))
-    plot_returns(
-        returns=history["returns"],
-        explore_rates=history["explore_rate"],
-        show=False,
-        save_to_dir=cfg.save_path,
-        conv_window=25,
-    )
+    # plot_returns(
+    #     returns=history["returns"],
+    #     explore_rates=history["explore_rate"],
+    #     show=False,
+    #     save_to_dir=cfg.save_path,
+    #     conv_window=25,
+    # )
 
 
 def setup_env(cfg):
