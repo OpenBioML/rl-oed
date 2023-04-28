@@ -55,7 +55,7 @@ def train_RT3D(cfg: DictConfig):
     update_count = 0
 
     ### training loop
-    for episode in range(0, cfg.environment.N_control_intervals):
+    for episode in range(total_episodes):
         actual_params = np.random.uniform(
             low=cfg.environment.actual_params,
             high=cfg.environment.actual_params,
