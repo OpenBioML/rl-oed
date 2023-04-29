@@ -35,7 +35,7 @@ def train_RT3D(cfg: DictConfig):
     )
 
     # start a new wandb run to track this script
-    wandb.init(project=cfg.project_name, config=dict(cfg))
+    wandb.init(project=cfg.wandb_project_name, entity=cfg.wandb_team, config=dict(cfg))
 
     ### prepare save path
     os.makedirs(cfg.save_path, exist_ok=True)
@@ -55,7 +55,7 @@ def train_RT3D(cfg: DictConfig):
     update_count = 0
 
     ### training loop
-    for episode in range(total_episodes):
+    for episode in range(10):
         actual_params = np.random.uniform(
             low=cfg.environment.actual_params,
             high=cfg.environment.actual_params,

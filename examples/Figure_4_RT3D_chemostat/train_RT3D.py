@@ -35,7 +35,7 @@ def train_RT3D(cfg : DictConfig):
     )
 
     # start a new wandb run to track this script
-    wandb.init(project="figure4-example", config=dict(cfg))
+    wandb.init(project=cfg.wandb_project_name, entity=cfg.wandb_team, config=dict(cfg))
 
     ### prepare save path
     os.makedirs(cfg.save_path, exist_ok=True)
