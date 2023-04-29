@@ -9,14 +9,14 @@ Set the WANDB_API_KEY environment variable to your api key by running
 ```
 $ export WANDB_API_KEY <YOUR API KEY>
 ```
-from the command line or 
+from the command line (RECOMMENDED) or 
 ```python
 os.environ["WANDB_API_KEY"] = "<YOUR API KEY>"
 ```
 from Python
 
 ## Login to w and b 
-To log in from command line
+To log in from command line (RECOMMENDED)
 ```
 $ wandb login --host=https://stability.wandb.io
 ```
