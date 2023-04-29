@@ -210,4 +210,5 @@ def setup_env(cfg):
 
 
 if __name__ == '__main__':
+
     train_RT3D()
