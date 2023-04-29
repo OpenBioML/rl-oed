@@ -6,7 +6,7 @@ with this
 ## 2. Set the WANDB_API_KEY login variable
 Set the WANDB_API_KEY environment variable to your api key by running 
 ```
-$ export WANDB_API_KEY <YOUR API KEY>
+$ export WANDB_API_KEY=<YOUR API KEY>
 ```
 from the command line (RECOMMENDED) or 
 ```python
