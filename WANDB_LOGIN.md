@@ -1,7 +1,6 @@
 ## 1. Get your w and b api key
-The weights and bias api key can be found by logging into the rl-oed team here: https://stability.wandb.io/rl-oed. 
-Make sure you get the api key associated with the rl-oed team and not your personal one, otherwise experiments will be 
-logged in the wrong place. You will need access to the stability cluster first, message NeythenT on discord to get help 
+The weights and bias api key can be found by logging into the rl-oed team here: https://stability.wandb.io/. 
+You will need access to the stability cluster first, message NeythenT on discord to get help 
 with this
 
 ## 2. Set the WANDB_API_KEY login variable
