@@ -734,42 +734,63 @@ class RT3D_agent():
             self.update_target_network(source=self.Q2_network, target=self.Q2_target, tau=self.polyak)
             self.update_target_network(source=self.policy_network, target=self.policy_target, tau=self.polyak)
 
-    def save_network(self, save_path):
+    def save_ckpt(self, save_path, additional_info=None):
         '''
-        Saves networks to directory specified by save_path
-        :param save_path: directory to save networks to
+        Creates a full checkpoint (networks, optimizers, memory buffers) and saves it to the specified path.
+        :param save_path: path to save the checkpoint to
+        :param additional_info: additional information to save (Python dictionary)
         '''
+        ckpt = {
+            "policy_network": self.policy_network.state_dict(),
+            "Q1_network": self.Q1_network.state_dict(),
+            "Q2_network": self.Q2_network.state_dict(),
+            "policy_target": self.policy_target.state_dict(),
+            "Q1_target": self.Q1_target.state_dict(),
+            "Q2_target": self.Q2_target.state_dict(),
+            "policy_network_opt": self.policy_network_opt.state_dict(),
+            "Q1_network_opt": self.Q1_network_opt.state_dict(),
+            "Q2_network_opt": self.Q2_network_opt.state_dict(),
+            "additional_info": additional_info if additional_info is not None else {},
+        }
 
-        torch.save(self.policy_network, os.path.join(save_path, "policy_network.pth"))
-        torch.save(self.Q1_network, os.path.join(save_path, "Q1_network.pth"))
-        torch.save(self.Q2_network, os.path.join(save_path, "Q2_network.pth"))
+        ### save buffers
+        for buffer in ("memory", "values", "states", "next_states", "actions", "rewards", "dones", 
+                       "sequences", "next_sequences", "all_returns"):
+            ckpt[buffer] = getattr(self, buffer)
 
-        torch.save(self.policy_target, os.path.join(save_path, "policy_target.pth"))
-        torch.save(self.Q1_target, os.path.join(save_path, "Q1_target.pth"))
-        torch.save(self.Q2_target, os.path.join(save_path, "Q2_target.pth"))
-
-    def load_network(self, load_path, load_target_networks=False):
+        ### save the checkpoint
+        torch.save(ckpt, save_path)
+    
+    def load_ckpt(self, load_path, load_target_networks=True):
         '''
-        Loads netoworks from directory specified by load_path.
-        :param load_path: directory to load networks from
-        :param load_target_networks: whether to load target networks
+        Loads a full checkpoint (networks, optimizers, memory buffers) from the specified path.
+        :param load_path: path to load the checkpoint from
+        :param load_target_networks: whether to load the target networks as well
         '''
+        ckpt = torch.load(load_path)
 
-        self.policy_network = torch.load(os.path.join(load_path, "policy_network.pth"))
-        self.policy_network_opt =  Adam(self.policy_network.parameters(), lr=self.pol_learning_rate)
-        
-        self.Q1_network = torch.load(os.path.join(load_path, "Q1_network.pth"))
-        self.Q1_network_opt = Adam(self.Q1_network.parameters(), lr=self.val_learning_rate)
-        
-        self.Q2_network = torch.load(os.path.join(load_path, "Q2_network.pth"))
-        self.Q2_etwork_opt = Adam(self.Q2_network.parameters(), lr=self.val_learning_rate)
+        ### load networks
+        self.policy_network.load_state_dict(ckpt["policy_network"])
+        self.Q1_network.load_state_dict(ckpt["Q1_network"])
+        self.Q2_network.load_state_dict(ckpt["Q2_network"])
 
+        ### load target networks
         if load_target_networks:
-            self.policy_target = torch.load(os.path.join(load_path, "policy_target.pth"))
-            self.Q1_target = torch.load(os.path.join(load_path, "Q1_target.pth"))
-            self.Q2_target = torch.load(os.path.join(load_path, "Q2_target.pth"))
-        else:
-            print("[WARNING] Not loading target networks")
+            self.policy_target.load_state_dict(ckpt["policy_target"])
+            self.Q1_target.load_state_dict(ckpt["Q1_target"])
+            self.Q2_target.load_state_dict(ckpt["Q2_target"])
+
+        ### load optimizers
+        self.policy_network_opt.load_state_dict(ckpt["policy_network_opt"])
+        self.Q1_network_opt.load_state_dict(ckpt["Q1_network_opt"])
+        self.Q2_network_opt.load_state_dict(ckpt["Q2_network_opt"])
+
+        ### load buffers
+        for buffer in ("memory", "values", "states", "next_states", "actions", "rewards", "dones", 
+                       "sequences", "next_sequences", "all_returns"):
+            setattr(self, buffer, ckpt[buffer])
+        
+        return ckpt
 
     def reset_weights(self, policy=True):
         '''
