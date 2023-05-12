@@ -8,7 +8,7 @@ IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__
 sys.path.append(IMPORT_PATH)
 
 import multiprocessing
-
+import wandb
 import hydra
 import numpy as np
 from casadi import *
@@ -34,6 +34,9 @@ def train_RT3D(cfg : DictConfig):
         "--- End of configuration ---",
         sep="\n\n"
     )
+
+    # start a new wandb run to track this script
+    wandb.init(project=cfg.wandb_project_name, entity=cfg.wandb_team, config=dict(cfg))
 
     ### prepare save path
     os.makedirs(cfg.save_path, exist_ok=True)
@@ -81,7 +84,7 @@ def train_RT3D(cfg : DictConfig):
         actual_params = np.random.uniform(
             low=cfg.environment.lb,
             high=cfg.environment.ub,
-            size=(cfg.environment.n_parallel_experiments, 3)
+            size=(cfg.environment.n_parallel_experiments, n_params)
         )
         env.param_guesses = DM(actual_params)
 
@@ -173,6 +176,11 @@ def train_RT3D(cfg : DictConfig):
         history["us"].extend(e_us)
         history["explore_rate"].append(explore_rate)
 
+        ### log results to w and b
+        for i in range(len(e_returns)):
+            wandb.log({"returns": e_returns[i], "actions": np.array(e_actions).transpose(1, 0, 2)[i],
+                       "us": e_us[i], "explore_rate": explore_rate})
+
         print(
             f"\nEPISODE: [{episode}/{total_episodes}] ({episode * cfg.environment.n_parallel_experiments} experiments)",
             f"explore rate:\t{explore_rate:.2f}",
@@ -210,6 +218,8 @@ def train_RT3D(cfg : DictConfig):
         save_to_dir=cfg.save_path,
         conv_window=25,
     )
+
+    wandb.finish()
 
 
 def setup_env(cfg):

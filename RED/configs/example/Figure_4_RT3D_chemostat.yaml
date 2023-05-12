@@ -3,6 +3,9 @@ defaults:
   - /model: RT3D_agent
   - _self_
 
+wandb_project_name: figure4-example
+wandb_team: rl-oed
+
 policy_delay: 2
 initial_explore_rate: 1
 explore_rate_mul: 1
