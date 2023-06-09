@@ -1,7 +1,7 @@
 import math
 import os
 import sys
-import argparse
+from datetime import datetime
 
 # TODO: Can we just run using python -m?
 IMPORT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,8 +35,26 @@ def train_RT3D(cfg : DictConfig):
         sep="\n\n"
     )
 
+    group_name = None
+    number_of_trials = 1
+    if hasattr(cfg, "number_of_trials"):
+        group_name = datetime.now().strftime("%d/%m/%Y_%H:%M")
+        number_of_trials = cfg.number_of_trials
+
+    for _ in range(number_of_trials):
+        run_single_experiment(cfg, group_name=group_name)
+        
+
+
+def run_single_experiment(cfg : DictConfig, group_name : str):
+
     # start a new wandb run to track this script
-    wandb.init(project=cfg.wandb_project_name, entity=cfg.wandb_team, config=dict(cfg))
+    if group_name:
+        wandb.init(reinit=True, project=cfg.wandb_project_name,
+                entity=cfg.wandb_team, group=group_name, config=dict(cfg))
+    else:
+        wandb.init(reinit=True, project=cfg.wandb_project_name,
+                entity=cfg.wandb_team, config=dict(cfg))
 
     ### prepare save path
     os.makedirs(cfg.save_path, exist_ok=True)
@@ -210,20 +228,20 @@ def setup_env(cfg):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-c", "--config_name",
-        type=str,
-        required=True,
-        help="Pass the config yaml file for either figure 3 or 4. For example, 'example/Figure_4_RT3D_chemostat'."
-    )
-    parser.add_argument(
-        "-r", "--repeats",
-        type=int,
-        required=True,
-        help="Number of runs to average the R3TD results across"
-    )
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     "-c", "--config_name",
+    #     type=str,
+    #     required=True,
+    #     help="Pass the config yaml file for either figure 3 or 4. For example, 'example/Figure_4_RT3D_chemostat'."
+    # )
+    # parser.add_argument(
+    #     "-r", "--repeats",
+    #     type=int,
+    #     required=True,
+    #     help="Number of runs to average the R3TD results across"
+    # )
+    # args = parser.parse_args()
     
     # TODO: How do we average multiple runs, in weights and biases or experiment side
-    train_RT3D(config_name=args.config_name)
+    train_RT3D()
