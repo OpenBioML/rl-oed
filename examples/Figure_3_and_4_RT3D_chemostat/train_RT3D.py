@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import sys
@@ -41,7 +42,10 @@ def train_RT3D(cfg : DictConfig):
         group_name = datetime.now().strftime("%d/%m/%Y_%H:%M")
         number_of_trials = cfg.number_of_trials
 
+    original_save_path = cfg.save_path     
     for _ in range(number_of_trials):
+        # Append datetime to differentiate trials
+        cfg.save_path = os.path.join(original_save_path, group_name)
         run_single_experiment(cfg, group_name=group_name)
         
 
@@ -69,12 +73,35 @@ def run_single_experiment(cfg : DictConfig, group_name : str):
     env, n_params = setup_env(cfg)
     total_episodes = cfg.environment.n_episodes // cfg.environment.n_parallel_experiments
     skip_first_n_episodes = cfg.environment.skip_first_n_experiments // cfg.environment.n_parallel_experiments
+    starting_episode = 0
 
-    history = {k: [] for k in ["returns", "actions", "rewards", "us", "explore_rate"]}
-    update_count = 0
+    history = {k: [] for k in ["returns", "actions", "rewards", "us", "explore_rate", "update_count"]}
+
+    ### load ckpt
+    if cfg.load_ckpt_dir_path is not None:
+        print(f"Loading checkpoint from: {cfg.load_ckpt_dir_path}")
+        # load the agent
+        agent_path = os.path.join(cfg.load_ckpt_dir_path, "agent.pt")
+        print(f"Loading agent from: {agent_path}")
+        additional_info = agent.load_ckpt(
+            load_path=agent_path,
+            load_target_networks=True,
+        )["additional_info"]
+        # load history
+        history_path = os.path.join(cfg.load_ckpt_dir_path, "history.json")
+        if os.path.exists(history_path):
+            print(f"Loading history from: {history_path}")
+            with open(history_path, "r") as f:
+                history = json.load(f)
+        # load explore rate
+        if "explore_rate" in history and len(history["explore_rate"]) > 0:
+            explore_rate = history["explore_rate"][-1]
+        # load starting episode
+        if "episode" in additional_info:
+            starting_episode = additional_info["episode"] + 1
 
     ### training loop
-    for episode in range(total_episodes):
+    for episode in range(starting_episode, total_episodes):
         # sample params from uniform distribution
         actual_params = np.random.uniform(
             low=cfg.environment.lb,
@@ -130,11 +157,10 @@ def run_single_experiment(cfg : DictConfig, group_name : str):
                 sequences[i].append(np.concatenate((state, action)))
                 
                 ### log episode data
-                e_us[i].append(u)
+                e_us[i].append(u.tolist())
                 next_states.append(next_state)
-                if reward != -1: # dont include the unstable trajectories as they override the true return
-                    e_rewards[i].append(reward)
-                    e_returns[i] += reward
+                e_rewards[i].append(reward)
+                e_returns[i] += reward
             states = next_states
 
         ### do not memorize the test trajectory (the last one)
@@ -151,9 +177,11 @@ def run_single_experiment(cfg : DictConfig, group_name : str):
         ### train agent
         if episode > skip_first_n_episodes:
             for _ in range(cfg.environment.n_parallel_experiments):
-                update_count += 1
-                update_policy = update_count % cfg.policy_delay == 0
+                history["update_count"].append(history["update_count"][-1] + 1 if len(history["update_count"]) > 0 else 1)
+                update_policy = history["update_count"][-1] % cfg.policy_delay == 0
                 agent.Q_update(policy=update_policy, recurrent=True)
+        else:
+            history["update_count"].append(history["update_count"][-1] if len(history["update_count"]) > 0 else 0)
 
         ### update explore rate
         explore_rate = cfg.explore_rate_mul * agent.get_rate(
@@ -165,7 +193,7 @@ def run_single_experiment(cfg : DictConfig, group_name : str):
 
         ### log results
         history["returns"].extend(e_returns)
-        history["actions"].extend(np.array(e_actions).transpose(1, 0, 2))
+        history["actions"].extend(np.array(e_actions).transpose(1, 0, 2).tolist())
         history["rewards"].extend(e_rewards)
         history["us"].extend(e_us)
         history["explore_rate"].append(explore_rate)
@@ -191,17 +219,20 @@ def run_single_experiment(cfg : DictConfig, group_name : str):
             )
 
         ### checkpoint
-        if cfg.ckpt_freq is not None and episode % cfg.ckpt_freq == 0:
+        if (cfg.ckpt_freq is not None and episode % cfg.ckpt_freq == 0) \
+            or episode == total_episodes - 1:
             ckpt_dir = os.path.join(cfg.save_path, f"ckpt_{episode}")
             os.makedirs(ckpt_dir, exist_ok=True)
-            agent.save_network(ckpt_dir)
-            for k in history.keys():
-                np.save(os.path.join(ckpt_dir, f"{k}.npy"), np.array(history[k]))
+            agent.save_ckpt(
+                save_path=os.path.join(ckpt_dir, "agent.pt"),
+                additional_info={
+                    "episode": episode,
+                }
+            )
+            with open(os.path.join(ckpt_dir, "history.json"), "w") as f:
+                json.dump(history, f)
 
-    ### save results and plot
-    agent.save_network(cfg.save_path)
-    for k in history.keys():
-        np.save(os.path.join(cfg.save_path, f"{k}.npy"), np.array(history[k]))
+    ### plot
     plot_returns(
         returns=history["returns"],
         explore_rates=history["explore_rate"],
@@ -228,20 +259,4 @@ def setup_env(cfg):
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "-c", "--config_name",
-    #     type=str,
-    #     required=True,
-    #     help="Pass the config yaml file for either figure 3 or 4. For example, 'example/Figure_4_RT3D_chemostat'."
-    # )
-    # parser.add_argument(
-    #     "-r", "--repeats",
-    #     type=int,
-    #     required=True,
-    #     help="Number of runs to average the R3TD results across"
-    # )
-    # args = parser.parse_args()
-    
-    # TODO: How do we average multiple runs, in weights and biases or experiment side
     train_RT3D()

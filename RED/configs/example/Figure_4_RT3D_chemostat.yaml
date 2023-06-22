@@ -12,6 +12,7 @@ explore_rate_mul: 1
 test_episode: False
 save_path: ${hydra:run.dir}
 ckpt_freq: 50
+load_ckpt_dir_path: null # directory containing agent's checkpoint to load ("agent.pt") + optionally "history.json" from which to resume training
 
 model:
   batch_size: ${eval:'${example.environment.N_control_intervals} * ${example.environment.n_parallel_experiments}'}
