@@ -4,6 +4,8 @@ defaults:
   - _self_
 
 policy_delay: 2
+wandb_team: rl-oed
+wandb_project_name: figure3-example
 initial_explore_rate: 1
 explore_rate_mul: 1
 test_episode: False
